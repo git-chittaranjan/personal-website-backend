@@ -3,6 +3,15 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# ASP.NET Core secrets & environment configs
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.Local.json
+appsettings.*.Development.json
+
+# ASP.NET Core User Secrets
+**/secrets.json
+
 # User-specific files
 *.rsuser
 *.suo
