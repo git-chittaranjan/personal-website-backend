@@ -19,7 +19,7 @@ namespace my_api_app.Services.Security.Implementations
         private readonly string _issuer;
         private readonly string _audience;
         private readonly int _accessTokenMinutes;
-        private readonly int _refreshTokenDays;
+        private readonly int _refreshTokenMinutes;
 
         public JwtTokenService(IConfiguration config)
         {
@@ -33,6 +33,7 @@ namespace my_api_app.Services.Security.Implementations
             _issuer = _config["Jwt:Issuer"] ?? "api";
             _audience = _config["Jwt:Audience"] ?? "apiUsers";
             _accessTokenMinutes = int.Parse(_config["Jwt:AccessTokenExpiryMinutes"] ?? "15");
+            _refreshTokenMinutes = int.Parse(_config["RefreshToken:ExpiryMinutes"] ?? "60");
         }
 
         public UserLoginResponseDto GenerateAccessToken(User user, JwtTokenPurpose tokenPurpose)
@@ -110,7 +111,7 @@ namespace my_api_app.Services.Security.Implementations
         {
             var randomBytes = RandomNumberGenerator.GetBytes(64);
             var token = Convert.ToBase64String(randomBytes);
-            var expiresAt = DateTime.UtcNow.AddDays(_refreshTokenDays);
+            var expiresAt = DateTime.UtcNow.AddMinutes(_refreshTokenMinutes);
             return (token, expiresAt);
         }
 

@@ -138,7 +138,13 @@ namespace my_api_app.Services.Auth
         {
             var user = await _userRepo.GetUserAsync(email, cancellationToken);
 
-            var loginResponse = _tokenService.GenerateAccessToken(user!, JwtTokenPurpose.LOGIN);
+            if (user is null)
+                throw new InvalidOperationException("User cannot be null");
+
+            var loginResponse = _tokenService.GenerateAccessToken(user, JwtTokenPurpose.LOGIN);
+
+            if (loginResponse is null)
+                throw new InvalidOperationException("JWT Token generation failed.");
 
             return loginResponse;
         }        

@@ -56,7 +56,7 @@ namespace my_api_app.Repositories.Implementations
 
                 var result = await cmd.ExecuteScalarAsync(cancellationToken);
 
-                if (result == null)
+                if (result == null || result == DBNull.Value)
                 {
                     tx.Rollback();
                     return null;

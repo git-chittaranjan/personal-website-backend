@@ -5,7 +5,7 @@ namespace my_api_app.Models.Auth
     public class User
     {
         public Guid UserID { get; set; }
-        public string? Name { get; set; } //Nullable
+        public string Name { get; set; } = default!;
         public Gender? Gender { get; set; } = default!; //Nullable
         public string Email { get; set; } = default!;
         public byte[] PasswordHash { get; set; } = default!;

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASP.NET Core Static Files Explained</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+        }
+
+        header {
+            background: linear-gradient(135deg, #2d3436, #0984e3);
+            padding: 30px 40px;
+            color: white;
+            font-size: 28px;
+            font-weight: 600;
+	    text-align: center;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+
+        h1, h2 {
+            color: #2d3436;
+        }
+
+        p {
+            line-height: 1.7;
+            font-size: 16px;
+        }
+
+        code {
+            display: block;
+            padding: 14px;
+            background: #2d3436;
+            color: #dfe6e9;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-size: 15px;
+            white-space: pre-wrap;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .highlight-box {
+            background: #dfe6e9;
+            border-left: 5px solid #0984e3;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+
+        .folder-structure {
+            background: #f7f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre;
+            border-left: 5px solid #636e72;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+            background: #dfe6e9;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    Understanding app.UseStaticFiles() and wwwroot in ASP.NET Core
+</header>
+
+<div class="container">
+
+    <div class="section">
+        <h1>Introduction</h1>
+        <p>
+            ASP.NET Core uses the <strong>wwwroot</strong> folder to store static files
+            such as HTML, CSS, JavaScript, and images. These files are served to the browser
+            only when the middleware <strong>app.UseStaticFiles();</strong> is enabled
+            in the application pipeline.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>What Is wwwroot?</h2>
+        <p>
+            The <strong>wwwroot</strong> folder is the web root of an ASP.NET Core application.
+            Any file placed inside this folder becomes directly accessible via a URL.
+        </p>
+
+        <div class="folder-structure">
+MyApp/
+│
+├─ Program.cs
+├─ Startup.cs (if using older versions)
+│
+├─ wwwroot/
+│   ├─ css/
+│   │   └─ site.css
+│   ├─ js/
+│   │   └─ script.js
+│   └─ images/
+│       └─ logo.png
+        </div>
+
+        <div class="highlight-box">
+            Files inside <strong>wwwroot</strong> can be accessed like this:<br>
+            <code>/css/site.css</code>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>What Does app.UseStaticFiles(); Do?</h2>
+
+        <p>
+            ASP.NET Core does not automatically serve static files. You must manually enable
+            the static file middleware in the request pipeline using:
+        </p>
+
+        <code>
+app.UseStaticFiles();
+        </code>
+
+        <p>
+            When enabled, ASP.NET Core checks incoming URLs and maps them to files inside
+            <strong>wwwroot</strong>. If the matching file exists, it is returned directly
+            to the browser without any controller or Razor Page involvement.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>Program.cs Example</h2>
+
+        <p>Below is how static files are usually enabled in a minimal hosting model:</p>
+
+        <code>
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+
+app.UseStaticFiles(); // Enables serving files from wwwroot
+
+app.MapGet("/", () => "Hello World!");
+
+app.Run();
+        </code>
+    </div>
+
+    <div class="section">
+        <h2>How the Browser Accesses Static Files</h2>
+
+        <p>
+            Example: if you place <strong>sample.html</strong> inside wwwroot, you can
+            access it directly:
+        </p>
+
+        <div class="highlight-box">
+            <strong>https://localhost:5001/sample.html</strong>
+        </div>
+    </div>
+
+</div>
+
+<footer>
+    ASP.NET Core Static Files Documentation Example
+</footer>
+
+</body>
+</html>

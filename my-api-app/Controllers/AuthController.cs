@@ -1,12 +1,9 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using my_api_app.DTOs.Auth;
 using my_api_app.DTOs.Auth.Login;
 using my_api_app.DTOs.Auth.Password_Reset;
 using my_api_app.DTOs.Auth.Register;
 using my_api_app.Services.Auth;
-using System.Security.Claims;
 
 namespace my_api_app.Controllers
 {

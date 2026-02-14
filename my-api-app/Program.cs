@@ -33,7 +33,6 @@ builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IDbConnectionFactory, SqlServerConnectionFactory>(); //Singleton BD Connection
-//builder.Services.AddScoped<IApiResponseService, ApiResponseService>();
 builder.Services.AddScoped<IOtpRepository, OtpRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -79,21 +78,50 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.PropertyNamingPolicy = new SnakeCaseNamingPolicy(); // For snake_case, we need a custom policy
-        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never; //return property with null value
     });
+
+
+// ------------------------------
+// Add CORS Service
+// ------------------------------
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowChittaranjanApp", policy =>
+        policy.WithOrigins(
+            "https://chittaranjansaha.com",
+            "https://www.chittaranjansaha.com/",
+            "http://localhost:3000"
+            )
+              .WithMethods("GET","POST")
+              .AllowAnyHeader());
+});
+
 
 // ------------------------------
 // Build app
 // ------------------------------
 WebApplication app = builder.Build();
 
-//app.UseMiddleware<GlobalExceptionMiddleware>(); //Exception handling middleware must be at the top of the pipeline
+Console.WriteLine($"Environment Name: {app.Environment.EnvironmentName}");
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();  // Detailed errors only in dev
+}
+else
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
+}
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseCors("AllowChittaranjanApp");
 app.MapControllers();
 
 app.Run();
+
+
