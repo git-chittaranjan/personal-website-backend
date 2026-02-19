@@ -4,16 +4,15 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using my_api_app.Data;
 using my_api_app.Helpers;
-using my_api_app.Middlewares;
+using my_api_app.Middlewares.Exception;
+using my_api_app.Middlewares.Logging;
 using my_api_app.Repositories.Implementations;
 using my_api_app.Repositories.Interfaces;
-using my_api_app.Responses;
 using my_api_app.Services.Auth;
 using my_api_app.Services.Security.Implementations;
 using my_api_app.Services.Security.Interfaces;
 using my_api_app.Validators.Auth.Register;
 using System.Text;
-using System.Text.Json;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
@@ -104,16 +103,20 @@ builder.Services.AddCors(options =>
 // ------------------------------
 WebApplication app = builder.Build();
 
-Console.WriteLine($"Environment Name: {app.Environment.EnvironmentName}");
-if (app.Environment.IsDevelopment())
-{
-    app.UseDeveloperExceptionPage();  // Detailed errors only in dev
-}
-else
-{
-    app.UseExceptionHandler("/Error");
-    app.UseHsts();
-}
+// 1. FIRST: Custom loggers (runs on ALL requests)
+app.UseConsoleRequestLogger();
+app.UseGlobalExceptionMiddleware();
+
+//Console.WriteLine($"Environment Name: {app.Environment.EnvironmentName}");
+//if (app.Environment.IsDevelopment())
+//{
+//    app.UseDeveloperExceptionPage();
+//}
+//else
+//{
+//    app.UseExceptionHandler("/api/error");
+//    app.UseHsts();
+//}
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();

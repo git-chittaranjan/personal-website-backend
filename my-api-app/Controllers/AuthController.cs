@@ -26,7 +26,7 @@ namespace my_api_app.Controllers
         // Register
         // ------------------------------
         [HttpPost("register")]
-        public async Task<IActionResult> Register(UserRegisterRequestDto dto, CancellationToken cancellationToken)
+        public async Task<IActionResult> Register([FromBody] UserRegisterRequestDto dto, CancellationToken cancellationToken)
         {
             await _authService.RegisterUserAsync(dto, cancellationToken);
             return Ok(new { message = "OTP sent to email." });
@@ -38,7 +38,7 @@ namespace my_api_app.Controllers
         // Login
         // ------------------------------
         [HttpPost("login")]
-        public async Task<IActionResult> Login(UserLoginRequestDto dto, CancellationToken cancellationToken)
+        public async Task<IActionResult> Login([FromBody] UserLoginRequestDto dto, CancellationToken cancellationToken)
         {
             await _authService.LoginUserAsync(dto, cancellationToken);
             return Ok(new { message = "OTP sent to registered email." });
@@ -50,7 +50,7 @@ namespace my_api_app.Controllers
         // Verify OTP
         // ------------------------------
         [HttpPost("verify-otp")]
-        public async Task<IActionResult> VerifyOtp(VerifyOtpRequestDto dto, CancellationToken cancellationToken)
+        public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequestDto dto, CancellationToken cancellationToken)
         {
             var result = await _authService.VerifyOtpAsync(dto, cancellationToken);
             return Ok(result);
@@ -62,7 +62,7 @@ namespace my_api_app.Controllers
         // Forgot Password : Validate Email and Send OTP
         // ------------------------------
         [HttpPost("forgot-password")]
-        public async Task<IActionResult> ForgotPassword(ForgotPasswordRequestDto dto, CancellationToken cancellationToken)
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto dto, CancellationToken cancellationToken)
         {
             await _passwordResetService.ForgotPasswordAsync(dto.Email, cancellationToken);
             return Ok(new { message = "OTP sent if email exists." });
@@ -74,7 +74,7 @@ namespace my_api_app.Controllers
         // Reset Password
         // ------------------------------
         [HttpPost("reset-password")]
-        public async Task<IActionResult> ResetPassword(ResetPasswordRequestDto dto, CancellationToken cancellationToken)
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto dto, CancellationToken cancellationToken)
         {
             await _passwordResetService.ResetPasswordAsync(dto.Email, dto.ResetToken, dto.NewPassword, cancellationToken);
 

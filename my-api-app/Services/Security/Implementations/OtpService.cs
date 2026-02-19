@@ -1,14 +1,10 @@
-﻿using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+﻿
 using my_api_app.Enums;
+using my_api_app.Exceptions.BusinessExceptions.OtpExceptions;
 using my_api_app.Helpers;
-using my_api_app.Models;
+using my_api_app.Models.Auth;
 using my_api_app.Repositories.Interfaces;
 using my_api_app.Services.Security.Interfaces;
-using System;
-using System.Data;
-using System.Security.Cryptography;
-using System.Threading.Tasks;
 
 namespace my_api_app.Services.Security.Implementations
 {
@@ -39,16 +35,33 @@ namespace my_api_app.Services.Security.Implementations
 
 
 
-        public async Task<bool> ValidateOtpAsync(string email, string otp, OtpPurpose purpose, CancellationToken cancellationToken)
+        public async Task<Guid> ValidateOtpAsync(string email, string otp, OtpPurpose purpose, CancellationToken cancellationToken)
         {
-            Guid? otpId = await _otpRepository.GetValidOtpIdAsync(email, otp, purpose, cancellationToken);
+            // Validate OTP purpose
+            if (!Enum.IsDefined(typeof(OtpPurpose), purpose))
+                throw new UnsupportedOtpPurposeException();
 
-            if (!otpId.HasValue)
-                return false;
+            OtpEntry? otpEntry = await _otpRepository.GetLatestOtpAsync(email, purpose, cancellationToken);
 
-            await _otpRepository.MarkOtpAsUsedAsync(otpId.Value, cancellationToken);
+            // No otp record found
+            if (otpEntry == null)
+                throw new InvalidOtpException();
 
-            return true;
+            // Otp already used
+            if (otpEntry.IsUsed)
+                throw new OtpAlreadyUsedException();
+
+            // Otp expired
+            if (otpEntry.ExpiresAt < DateTime.UtcNow)
+                throw new OtpExpiredException();
+
+            // User entered OTP code does not match
+            if (otpEntry.OtpCode != otp)
+                throw new InvalidOtpException();
+
+            // All checks passed — mark as used
+            await _otpRepository.MarkOtpAsUsedAsync(otpEntry.OtpID, cancellationToken);
+            return otpEntry.OtpID;
         }
     }
 }

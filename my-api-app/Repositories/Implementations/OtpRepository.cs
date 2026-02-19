@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using my_api_app.Data;
 using my_api_app.Enums;
+using my_api_app.Models.Auth;
 using my_api_app.Repositories.Interfaces;
 using System.Data;
 
@@ -35,60 +36,41 @@ namespace my_api_app.Repositories.Implementations
 
 
 
-        public async Task<Guid?> GetValidOtpIdAsync(string email, string otp, OtpPurpose purpose, CancellationToken cancellationToken)
+        public async Task<OtpEntry?> GetLatestOtpAsync(string email, OtpPurpose purpose, CancellationToken cancellationToken)
         {
-            const string sql1 = "SELECT TOP 1 OtpID FROM OtpEntries WITH (UPDLOCK, ROWLOCK) WHERE Email = @EmailID AND OtpPurpose = @OtpPurpose AND IsUsed = 0 AND ExpiresAt >= SYSUTCDATETIME() AND OtpCode = @OtpCode ORDER BY CreatedAt DESC;";
-            const string sql2 = "UPDATE OtpEntries SET IsUsed = 1 WHERE OtpID = @OtpID;";
-
+            const string sql = @"SELECT TOP 1 OtpID, OtpCode, IsUsed, ExpiresAt FROM OtpEntries WITH (UPDLOCK, ROWLOCK) WHERE Email = @Email AND OtpPurpose = @OtpPurpose ORDER BY CreatedAt DESC;";
 
             using SqlConnection con = _factory.CreateConnection();
             await con.OpenAsync(cancellationToken);
 
-            using var tx = con.BeginTransaction(IsolationLevel.Serializable);
+            using var cmd = new SqlCommand(sql, con);
+            cmd.Parameters.AddWithValue("@Email", email);
+            cmd.Parameters.AddWithValue("@OtpPurpose", purpose.ToString());
 
-            try
+            using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
             {
-                using var cmd = new SqlCommand(sql1, con, tx);
-
-                cmd.Parameters.AddWithValue("@EmailID", email);
-                cmd.Parameters.AddWithValue("@OtpPurpose", purpose.ToString());
-                cmd.Parameters.AddWithValue("@OtpCode", otp);
-
-                var result = await cmd.ExecuteScalarAsync(cancellationToken);
-
-                if (result == null || result == DBNull.Value)
+                return new OtpEntry
                 {
-                    tx.Rollback();
-                    return null;
-                }
-
-                Guid otpId = (Guid)result;
-
-                using var cmd2 = new SqlCommand(sql2, con, tx);
-                cmd2.Parameters.AddWithValue("@OtpID", otpId);
-                await cmd2.ExecuteNonQueryAsync(cancellationToken);
-
-                tx.Commit();
-                return otpId;
+                    OtpID = reader.GetGuid(0),
+                    OtpCode = reader.GetString(1),
+                    IsUsed = reader.GetBoolean(2),
+                    ExpiresAt = reader.GetDateTime(3)
+                };
             }
-            catch
-            {
-                tx.Rollback();
-                throw new InvalidDataException($"Invalid Operation"); ;
-            }
+
+            return null;
         }
 
 
 
         public async Task<bool> MarkOtpAsUsedAsync(Guid otpId, CancellationToken cancellationToken)
         {
-            // Already handled inside GetValidOtpIdAsync transactional flow above
-
             const string sql = "UPDATE OtpEntries SET IsUsed = 1 WHERE OtpID = @OtpID;";
 
             using SqlConnection con = _factory.CreateConnection();
-            using var cmd = new SqlCommand(sql, con);           
-            
+            using var cmd = new SqlCommand(sql, con);
+
             cmd.Parameters.AddWithValue("@OtpID", otpId);
 
             await con.OpenAsync(cancellationToken);

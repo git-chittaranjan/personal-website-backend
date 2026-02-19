@@ -1,5 +1,7 @@
 ﻿using my_api_app.DTOs.Auth;
 using my_api_app.Enums;
+using my_api_app.Exceptions.BusinessExceptions.ServerExceptions;
+using my_api_app.Exceptions.BusinessExceptions.TokenExceptions;
 using my_api_app.Models.Auth;
 using my_api_app.Repositories.Interfaces;
 using my_api_app.Services.Security.Implementations;
@@ -40,7 +42,7 @@ namespace my_api_app.Services.Auth
             var user = await _userRepo.GetUserAsync(email, cancellationToken);
 
             if (user == null)
-                throw new Exception("If an account exists with this email, an OTP has been sent.");
+                return;
 
             await _otpService.GenerateAndSendOtpAsync(user.Name, user.Email, OtpPurpose.PASSWORD_RESET, cancellationToken);
         }
@@ -50,7 +52,7 @@ namespace my_api_app.Services.Auth
         {
             var user = await _userRepo.GetUserAsync(email, cancellationToken);
             if (user == null)
-                throw new Exception("User Not found in Pending User Table");
+                throw new InternalServerException();
 
             var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
             int expiryMinutes = int.Parse(_config["ResetToken:ExpiryMinutes"] ?? "10");
@@ -61,7 +63,7 @@ namespace my_api_app.Services.Auth
             {
                 Email = user.Email,
                 TokenHash = hashToken, //Saving hash token in DB
-                ExpiresAt = DateTime.UtcNow.AddMinutes(10)
+                ExpiresAt = DateTime.UtcNow.AddMinutes(expiryMinutes)
             };
 
             await _tokenRepo.CreateResetTokenAsync(tokenEntity, cancellationToken);
@@ -84,15 +86,16 @@ namespace my_api_app.Services.Auth
 
             var passwordResetToken = await _tokenRepo.GetResetTokenAsync(tokenHash, cancellationToken);
 
+            // Token not found, already used, or expired
             if (passwordResetToken == null)
-                throw new SecurityException("Invalid or expired token");
+                throw new InvalidPasswordResetTokenException();
+
+            // Token does not belong to this email — possible tampering
+            if (passwordResetToken.Email != email)
+                throw new InvalidPasswordResetTokenException();
 
             var (hash, salt) = _hasher.HashPassword(newPassword);
 
-            if(passwordResetToken.Email != email)
-            {
-                throw new SecurityException("Email does not match with the Token");
-            }
             await _userRepo.UpdatePasswordAsync(passwordResetToken.Email, hash, salt, cancellationToken);
             await _tokenRepo.MarkAsUsedResetTokenAsync(passwordResetToken.TokenID, cancellationToken);
         }

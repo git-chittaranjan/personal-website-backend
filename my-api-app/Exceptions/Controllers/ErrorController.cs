@@ -1,17 +1,16 @@
 ﻿using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
-namespace my_api_app.Controllers.Error
+namespace my_api_app.Exceptions.Controllers
 {
     [ApiController]
+    [Route("api")]
     public sealed class ErrorController : ControllerBase
     {
-        private readonly ILogger<ErrorController> _logger;
         private readonly IWebHostEnvironment _webHostEnvironment;
 
-        public ErrorController(ILogger<ErrorController> logger, IWebHostEnvironment webHostEnvironment)
+        public ErrorController(IWebHostEnvironment webHostEnvironment)
         {
-            _logger = logger;
             _webHostEnvironment = webHostEnvironment;
         }
 
@@ -20,8 +19,6 @@ namespace my_api_app.Controllers.Error
         {
             var exceptionFeature = HttpContext.Features.Get<IExceptionHandlerFeature>();
             var exception = exceptionFeature?.Error;
-
-            _logger.LogError(exception, "Unhandled exception occurred.");
 
             var problemDetails = new ProblemDetails
             {

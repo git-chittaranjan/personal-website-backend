@@ -1,11 +1,14 @@
-﻿using my_api_app.DTOs.Auth;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using my_api_app.DTOs.Auth;
 using my_api_app.DTOs.Auth.Login;
 using my_api_app.DTOs.Auth.Register;
 using my_api_app.Enums;
+using my_api_app.Exceptions.BusinessExceptions.OtpExceptions;
+using my_api_app.Exceptions.BusinessExceptions.ServerExceptions;
+using my_api_app.Exceptions.BusinessExceptions.UserExceptions;
 using my_api_app.Models.Auth;
 using my_api_app.Repositories.Interfaces;
 using my_api_app.Services.Security.Interfaces;
-using System.Security.Claims;
 
 namespace my_api_app.Services.Auth
 {
@@ -38,7 +41,7 @@ namespace my_api_app.Services.Auth
             bool emailExists = await _userRepo.EmailExistsAsync(dto.Email, cancellationToken);
 
             if (emailExists)
-                throw new Exception("Email already registered.");
+                throw new UserAlreadyExistsException();
 
 
             var (hash, salt) = _hasher.HashPassword(dto.Password);
@@ -68,12 +71,12 @@ namespace my_api_app.Services.Auth
             var user = await _userRepo.GetUserAsync(dto.Email, cancellationToken);
 
             if (user == null)
-                throw new Exception("Invalid credentials.");
+                throw new InvalidCredentialsException();
 
             var passwordFlag = _hasher.VerifyPassword(dto.Password, user.PasswordHash, user.PasswordSalt);
 
             if (!passwordFlag)
-                throw new Exception("Invalid credentials.");
+                throw new InvalidCredentialsException();
 
             await _otpService.GenerateAndSendOtpAsync(user.Name, dto.Email, OtpPurpose.LOGIN, cancellationToken);
         }
@@ -86,10 +89,7 @@ namespace my_api_app.Services.Auth
         // ------------------------------
         public async Task<object> VerifyOtpAsync(VerifyOtpRequestDto dto, CancellationToken cancellationToken)
         {
-            var isValid = await _otpService.ValidateOtpAsync(dto.Email, dto.OtpCode, dto.OtpPurpose, cancellationToken);
-
-            if (!isValid)
-                throw new Exception("Invalid or expired OTP.");
+            await _otpService.ValidateOtpAsync(dto.Email, dto.OtpCode, dto.OtpPurpose, cancellationToken);
 
             return dto.OtpPurpose switch
             {
@@ -102,7 +102,7 @@ namespace my_api_app.Services.Auth
                 OtpPurpose.PASSWORD_RESET =>
                     await _passwordResetService.GenerateResetTokenAsync(dto.Email, cancellationToken),
 
-                _ => throw new Exception("Unsupported OTP purpose.")
+                _ => throw new UnsupportedOtpPurposeException()
             };
         }
 
@@ -116,7 +116,7 @@ namespace my_api_app.Services.Auth
             var pendingUser = await _pendingUserRepo.GetPendingUserAsync(email, cancellationToken);
 
             if (pendingUser == null)
-                throw new Exception("User Not found in Pending User Table");
+                throw new PendingUserNotFoundException();
 
             await _userRepo.CreateUserAsync(pendingUser.Name, pendingUser.Email, pendingUser.Gender, pendingUser.PasswordHash, pendingUser.PasswordSalt, cancellationToken);
 
@@ -139,12 +139,12 @@ namespace my_api_app.Services.Auth
             var user = await _userRepo.GetUserAsync(email, cancellationToken);
 
             if (user is null)
-                throw new InvalidOperationException("User cannot be null");
+                throw new InternalServerException();
 
             var loginResponse = _tokenService.GenerateAccessToken(user, JwtTokenPurpose.LOGIN);
 
             if (loginResponse is null)
-                throw new InvalidOperationException("JWT Token generation failed.");
+                throw new InternalServerException();
 
             return loginResponse;
         }        

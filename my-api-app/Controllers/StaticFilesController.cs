@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using my_api_app.Exceptions.BusinessExceptions;
+using my_api_app.Responses;
 
 namespace my_api_app.Controllers
 {
@@ -19,7 +21,7 @@ namespace my_api_app.Controllers
             var path = Path.Combine(_env.WebRootPath, "images", fileName);
 
             if (!System.IO.File.Exists(path))
-                return NotFound("File not found: " + fileName);
+                throw new NotFoundException(Statuses.StaticImageNotFound);
 
             return PhysicalFile(path, "image/png");
         }
@@ -31,7 +33,7 @@ namespace my_api_app.Controllers
 
 
             if (!System.IO.File.Exists(path))
-                return NotFound("File not found: " + fileName);
+                throw new NotFoundException(Statuses.StaticHtmlNotFound);
 
             return PhysicalFile(path, "text/html");
         }

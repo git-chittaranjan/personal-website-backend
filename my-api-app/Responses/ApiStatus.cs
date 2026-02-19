@@ -3,7 +3,7 @@
     public class ApiStatus
     {
         public int HttpCode { get; set; }
-        public string? Code { get; set; }
-        public string? Message { get; set; }
+        public string StatusCode { get; set; } = default!;
+        public string Message { get; set; } = default!;
     }
 }

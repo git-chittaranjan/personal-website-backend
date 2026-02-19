@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using my_api_app.Data;
 using my_api_app.Enums;
+using my_api_app.Exceptions.BusinessExceptions.ServerExceptions;
 using my_api_app.Models.Auth;
 using my_api_app.Repositories.Interfaces;
 
@@ -66,7 +67,7 @@ namespace my_api_app.Repositories.Implementations
 
                 if (!Enum.TryParse<Gender>(genderStr, true, out var parsedGender))
                 {
-                    throw new InvalidDataException($"Invalid Gender value '{genderStr}' in DB");
+                    throw new InternalServerException();
                 }
 
                 gender = parsedGender;

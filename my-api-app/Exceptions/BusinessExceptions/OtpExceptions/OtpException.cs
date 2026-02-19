@@ -1,6 +1,6 @@
 ﻿using my_api_app.Responses;
 
-namespace my_api_app.Exceptions
+namespace my_api_app.Exceptions.BusinessExceptions.OtpExceptions
 {
     public sealed class OtpException : BusinessException
     {
