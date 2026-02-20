@@ -47,6 +47,10 @@ namespace my_api_app.Services.Security.Implementations
             if (otpEntry == null)
                 throw new InvalidOtpException();
 
+            // User entered OTP code does not match
+            if (otpEntry.OtpCode != otp)
+                throw new InvalidOtpException();
+
             // Otp already used
             if (otpEntry.IsUsed)
                 throw new OtpAlreadyUsedException();
@@ -54,10 +58,6 @@ namespace my_api_app.Services.Security.Implementations
             // Otp expired
             if (otpEntry.ExpiresAt < DateTime.UtcNow)
                 throw new OtpExpiredException();
-
-            // User entered OTP code does not match
-            if (otpEntry.OtpCode != otp)
-                throw new InvalidOtpException();
 
             // All checks passed — mark as used
             await _otpRepository.MarkOtpAsUsedAsync(otpEntry.OtpID, cancellationToken);

@@ -3,6 +3,7 @@ using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using my_api_app.Data;
+using my_api_app.Extensions;
 using my_api_app.Helpers;
 using my_api_app.Middlewares.Exception;
 using my_api_app.Middlewares.Logging;
@@ -23,6 +24,7 @@ ConfigurationManager configuration = builder.Configuration;
 builder.Services.AddControllers();
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterDtoValidator>();
+builder.Services.AddHttpContextAccessor(); // required for IHttpContextAccessor
 
 // ------------------------------
 // Dependency Injection (Services)
@@ -39,6 +41,7 @@ builder.Services.AddScoped<IPendingUserRepository, PendingUserRepository>();
 builder.Services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
 builder.Services.AddScoped<IResetTokenHasher, ResetTokenHasher>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
+builder.Services.AddCustomModelValidationResponse();
 
 // ------------------------------
 // JWT Authentication
@@ -102,12 +105,14 @@ builder.Services.AddCors(options =>
 // Build app
 // ------------------------------
 WebApplication app = builder.Build();
+Console.WriteLine($"Environment Name: {app.Environment.EnvironmentName}");
+app.ConfigureApiResponseHelper(); // Configure ApiResponseHelper with IHttpContextAccessor
+
 
 // 1. FIRST: Custom loggers (runs on ALL requests)
 app.UseConsoleRequestLogger();
 app.UseGlobalExceptionMiddleware();
 
-//Console.WriteLine($"Environment Name: {app.Environment.EnvironmentName}");
 //if (app.Environment.IsDevelopment())
 //{
 //    app.UseDeveloperExceptionPage();

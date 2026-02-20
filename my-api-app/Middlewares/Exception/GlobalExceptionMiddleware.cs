@@ -53,7 +53,7 @@ public class GlobalExceptionMiddleware
                 logger.LogWarning(exception, "Business exception occurred");
                 break;
 
-            // 2. FOR FLUENT VALIDATION EXCEPTIONS
+            // 2. FOR FLUENT VALIDATION EXCEPTIONS - Not getting called, so added ModelValidationResponseExtension.cs clss
             case FluentValidation.ValidationException ve:
                 status = Statuses.ValidationFailed;
                 errorObject = ve.Errors
@@ -81,16 +81,7 @@ public class GlobalExceptionMiddleware
 
         context.Response.StatusCode = status.HttpCode;
 
-        var response = new ApiResponse<object>
-        {
-            Success = false,
-            StatusCode = status.StatusCode,
-            Data = null,
-            Description = status.Message,
-            Errors = errorObject == null ? null : JsonSerializer.Serialize(errorObject, JsonOptions),
-            Pagination = null,
-            TraceId = traceId
-        };
+        var response = ApiResponseFactory.Failure(status, errorObject);
 
         var jsonResponse = JsonSerializer.Serialize(response, JsonOptions);
         await context.Response.WriteAsync(jsonResponse);

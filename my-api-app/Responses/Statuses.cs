@@ -4,11 +4,17 @@ namespace my_api_app.Responses
 {
     public class Statuses
     {
+        //================================ Success related statuses ================================
+
         public static readonly ApiStatus Success =
             new() { HttpCode = 200, StatusCode = "SUCCESS", Message = "Success! Request processed successfully" };
 
         public static readonly ApiStatus Created =
             new() { HttpCode = 201, StatusCode = "CREATED", Message = "Success! Resource created successfully" };
+
+
+
+        //================================ Client error related statuses 4XX ================================
 
         public static readonly ApiStatus BadRequest =
             new() { HttpCode = 400, StatusCode = "BAD_REQUEST", Message = "Bad Request! The request is invalid" };
@@ -27,7 +33,7 @@ namespace my_api_app.Responses
 
 
 
-        //================================ JWT related statuses ================================
+        //================================ Not found related statuses ================================
         public static readonly ApiStatus ResourceNotFound =
             new() { HttpCode = 404, StatusCode = "RESOURCE_NOT_FOUND", Message = "Not Found! Resource not found" };
 
@@ -39,7 +45,7 @@ namespace my_api_app.Responses
 
 
 
-        //================================ JWT related statuses ================================
+        //================================ Token related statuses ================================
 
         public static readonly ApiStatus TokenExpired =
             new() { HttpCode = 401, StatusCode = "TOKEN_EXPIRED", Message = "Unauthorized! JWT token has expired" };
@@ -91,7 +97,7 @@ namespace my_api_app.Responses
 
 
 
-        //================================ Server Error related statuses ================================
+        //================================ Server Error related statuses 5XX ================================
 
         public static readonly ApiStatus InternalServerError =
             new() { HttpCode = 500, StatusCode = "INTERNAL_SERVER_ERROR", Message = "Server Error! An unexpected server error occurred" };

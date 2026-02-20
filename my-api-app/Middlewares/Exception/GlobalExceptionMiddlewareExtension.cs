@@ -2,7 +2,7 @@
 
 namespace my_api_app.Middlewares.Exception
 {
-    public static class GlobalExceptionMiddlewareExtensions
+    public static class GlobalExceptionMiddlewareExtension
     {
         public static IApplicationBuilder UseGlobalExceptionMiddleware(this IApplicationBuilder builder)
         {

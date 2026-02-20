@@ -8,7 +8,7 @@ namespace my_api_app.Responses
         public string? StatusCode { get; set; } = null;
         public T? Data { get; set; } = default;
         public string? Description { get; set; } = null;
-        public string? Errors { get; set; } = null;
+        public object? Errors { get; set; } = null;
         public string? TraceId { get; set; } = null;
         public Pagination? Pagination { get; set; }
 }
