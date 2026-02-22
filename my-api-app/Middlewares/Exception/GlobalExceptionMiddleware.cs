@@ -1,5 +1,4 @@
 ﻿
-using FluentValidation;
 using my_api_app.DTOs;
 using my_api_app.Exceptions.BusinessExceptions;
 using my_api_app.Helpers;
@@ -10,6 +9,7 @@ public class GlobalExceptionMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<GlobalExceptionMiddleware> _logger;
+    private readonly IApiResponseFactory _responseFactory;
 
     // Cached to avoid recreating on every exception
     private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
@@ -18,10 +18,11 @@ public class GlobalExceptionMiddleware
     };
 
 
-    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
+    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger, IApiResponseFactory responseFactory)
     {
         _next = next;
         _logger = logger;
+        _responseFactory = responseFactory;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -32,11 +33,11 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            await HandleExceptionAsync(context, ex, _logger);
+            await HandleExceptionAsync(context, ex, _logger, _responseFactory);
         }
     }
 
-    private static async Task HandleExceptionAsync(HttpContext context, Exception exception, ILogger logger)
+    private static async Task HandleExceptionAsync(HttpContext context, Exception exception, ILogger logger, IApiResponseFactory responseFactory)
     {
         context.Response.ContentType = "application/json";
 
@@ -65,7 +66,13 @@ public class GlobalExceptionMiddleware
                 logger.LogWarning(exception, "Validation exception occurred");
                 break;
 
-            // 3. ARGUMENT/INVALID OPERATION
+            // 3a. PROGRAMMING ERRORS — is of Internal Server Error type
+            case ArgumentNullException ane:
+                status = Statuses.InternalServerError;
+                logger.LogError(exception, "Null argument passed — possible validation pipeline bug");
+                break;
+
+            // 3b. ARGUMENT/INVALID OPERATION
             case ArgumentException ae:
                 status = Statuses.BadRequest;
                 errorObject = new[] { ae.Message };
@@ -81,7 +88,7 @@ public class GlobalExceptionMiddleware
 
         context.Response.StatusCode = status.HttpCode;
 
-        var response = ApiResponseFactory.Failure(status, errorObject);
+        var response = responseFactory.Failure(status, errorObject);
 
         var jsonResponse = JsonSerializer.Serialize(response, JsonOptions);
         await context.Response.WriteAsync(jsonResponse);

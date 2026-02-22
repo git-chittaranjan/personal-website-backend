@@ -5,6 +5,7 @@ using my_api_app.DTOs.Auth.Register;
 using my_api_app.Enums;
 using my_api_app.Exceptions.BusinessExceptions.OtpExceptions;
 using my_api_app.Exceptions.BusinessExceptions.ServerExceptions;
+using my_api_app.Exceptions.BusinessExceptions.TokenExceptions;
 using my_api_app.Exceptions.BusinessExceptions.UserExceptions;
 using my_api_app.Models.Auth;
 using my_api_app.Repositories.Interfaces;
@@ -58,7 +59,15 @@ namespace my_api_app.Services.Auth
 
             await _pendingUserRepo.CreatePendingUserAsync(pendingUser, cancellationToken);
 
-            await _otpService.GenerateAndSendOtpAsync(dto.Name, dto.Email, OtpPurpose.EMAIL_VERIFICATION, cancellationToken);
+            try
+            {
+                await _otpService.GenerateAndSendOtpAsync(dto.Name, dto.Email, OtpPurpose.EMAIL_VERIFICATION, cancellationToken);
+            }
+            catch (OtpDeliveryFailedException)
+            {
+                await _pendingUserRepo.DeletePendingUserAsync(dto.Email, cancellationToken);
+                throw; // Because email delivery is an external call that can fail independently and deserves its own meaningful error code rather than a generic 500
+            }
         }
 
 
@@ -78,7 +87,14 @@ namespace my_api_app.Services.Auth
             if (!passwordFlag)
                 throw new InvalidCredentialsException();
 
-            await _otpService.GenerateAndSendOtpAsync(user.Name, dto.Email, OtpPurpose.LOGIN, cancellationToken);
+            try
+            {
+                await _otpService.GenerateAndSendOtpAsync(user.Name, dto.Email, OtpPurpose.LOGIN, cancellationToken);
+            }
+            catch (OtpDeliveryFailedException)
+            {
+                throw;
+            }
         }
 
 
@@ -87,20 +103,32 @@ namespace my_api_app.Services.Auth
         // ------------------------------
         // Validate OTP and initiate Registration/Login/Reset process
         // ------------------------------
-        public async Task<object> VerifyOtpAsync(VerifyOtpRequestDto dto, CancellationToken cancellationToken)
+        public async Task<OtpFlowResult> VerifyOtpAsync(VerifyOtpRequestDto dto, CancellationToken cancellationToken)
         {
-            await _otpService.ValidateOtpAsync(dto.Email, dto.OtpCode, dto.OtpPurpose, cancellationToken);
+            Guid otpId = await _otpService.ValidateOtpAsync(dto.Email, dto.OtpCode, dto.OtpPurpose, cancellationToken);
+
+            if(otpId == Guid.Empty)
+                throw new InvalidOtpException();
 
             return dto.OtpPurpose switch
             {
-                OtpPurpose.EMAIL_VERIFICATION =>
-                    await CompleteRegistrationAsync(dto.Email, cancellationToken),
+                OtpPurpose.EMAIL_VERIFICATION => new OtpFlowResult
+                {
+                    OtpFlowPurpose = OtpPurpose.EMAIL_VERIFICATION,
+                    Data = await CompleteRegistrationAsync(dto.Email, cancellationToken)
+                },
 
-                OtpPurpose.LOGIN =>
-                    await CompleteLoginAsync(dto.Email, cancellationToken),
+                OtpPurpose.LOGIN => new OtpFlowResult
+                {
+                    OtpFlowPurpose = OtpPurpose.LOGIN,
+                    Data = await CompleteLoginAsync(dto.Email, cancellationToken)
+                },
 
-                OtpPurpose.PASSWORD_RESET =>
-                    await _passwordResetService.GenerateResetTokenAsync(dto.Email, cancellationToken),
+                OtpPurpose.PASSWORD_RESET => new OtpFlowResult
+                {
+                    OtpFlowPurpose = OtpPurpose.PASSWORD_RESET,
+                    Data = await _passwordResetService.GenerateResetTokenAsync(dto.Email, cancellationToken)
+                },
 
                 _ => throw new UnsupportedOtpPurposeException()
             };
@@ -113,18 +141,26 @@ namespace my_api_app.Services.Auth
         // ------------------------------
         private async Task<object> CompleteRegistrationAsync(string email, CancellationToken cancellationToken)
         {
+            bool emailExists = await _userRepo.EmailExistsAsync(email, cancellationToken);
+
+            // Handling Race Condition resulted in the email already existing
+            if (emailExists)
+                throw new UserAlreadyExistsException();
+
             var pendingUser = await _pendingUserRepo.GetPendingUserAsync(email, cancellationToken);
 
             if (pendingUser == null)
                 throw new PendingUserNotFoundException();
 
-            await _userRepo.CreateUserAsync(pendingUser.Name, pendingUser.Email, pendingUser.Gender, pendingUser.PasswordHash, pendingUser.PasswordSalt, cancellationToken);
+            CreatedUserResult result = await _userRepo.CreateUserAsync(pendingUser.Name, pendingUser.Email, pendingUser.Gender, pendingUser.PasswordHash, pendingUser.PasswordSalt, cancellationToken);
 
             await _pendingUserRepo.DeletePendingUserAsync(email, cancellationToken);
 
-            return new
+            return new UserRegisterResponseDto
             {
-                message = "User registered successfully."
+                UserId = result.UserID,
+                Email = email,
+                CreatedAt = result.CreatedAt
             };
         }
 
@@ -141,12 +177,20 @@ namespace my_api_app.Services.Auth
             if (user is null)
                 throw new InternalServerException();
 
-            var loginResponse = _tokenService.GenerateAccessToken(user, JwtTokenPurpose.LOGIN);
+            UserLoginResponseDto? loginResponse = _tokenService.GenerateAccessToken(user, JwtTokenPurpose.LOGIN);
 
             if (loginResponse is null)
-                throw new InternalServerException();
+                throw new TokenGenerationFailedException();
 
-            return loginResponse;
-        }        
+            return new UserLoginResponseDto
+            {
+                UserId = loginResponse.UserId,
+                Email = loginResponse.Email,
+                Name = loginResponse.Name,
+                AccessToken = loginResponse.AccessToken,
+                ExpiresAt = loginResponse.ExpiresAt,
+                TokenType = loginResponse.TokenType
+            };
+        }
     }
 }

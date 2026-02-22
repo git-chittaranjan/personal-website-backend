@@ -1,7 +1,8 @@
-﻿using System.Net;
-using System.Net.Mail;
+﻿using my_api_app.Enums;
 using my_api_app.Exceptions.BusinessExceptions.ServerExceptions;
 using my_api_app.Services.Security.Interfaces;
+using System.Net;
+using System.Net.Mail;
 
 namespace my_api_app.Services.Security.Implementations
 {
@@ -18,7 +19,20 @@ namespace my_api_app.Services.Security.Implementations
 
 
 
-        public async Task SendEmailAsync(string name, string to, string otpCode, int expiryMinutes)
+        private static string GetEmailPurposeText(OtpPurpose purpose)
+        {
+            return purpose switch
+            {
+                OtpPurpose.EMAIL_VERIFICATION => "Email",
+                OtpPurpose.LOGIN => "Login",
+                OtpPurpose.PASSWORD_RESET => "Password Reset",
+                _ => ""
+            };
+        }
+
+
+
+        public async Task SendEmailAsync(string name, string to, string otpCode, int expiryMinutes, OtpPurpose purpose)
         {
             var smtpHost = _config["Email:SmtpHost"];
             var smtpPort = int.Parse(_config["Email:SmtpPort"] ?? "587");
@@ -43,9 +57,13 @@ namespace my_api_app.Services.Security.Implementations
             {
                 throw new InternalServerException();
             }
+
+            var purposeText = GetEmailPurposeText(purpose);
+
             var body = await File.ReadAllTextAsync(templatePath);
             body = body.Replace("{{NAME}}", name)
                        .Replace("{{OTP_CODE}}", otpCode)
+                       .Replace("{{OTP_PURPOSE}}", purposeText)
                        .Replace("{{EXP_MINUTES}}", expiryMinutes.ToString());
 
             //HTML enabled for OTPs

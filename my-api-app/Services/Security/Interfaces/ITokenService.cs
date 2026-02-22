@@ -9,8 +9,6 @@ namespace my_api_app.Services.Security.Interfaces
     public interface ITokenService
     {
         UserLoginResponseDto? GenerateAccessToken(User user, JwtTokenPurpose tokenPurpose);
-        (string token, DateTime expiresAt) GenerateRefreshToken();
-        ClaimsPrincipal? GetPrincipalFromExpiredToken(string token);
         JwtUserClaims? GetTokenClaims(ClaimsPrincipal userPrincipal);
     }
 }

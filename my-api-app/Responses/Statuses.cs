@@ -9,9 +9,8 @@ namespace my_api_app.Responses
         public static readonly ApiStatus Success =
             new() { HttpCode = 200, StatusCode = "SUCCESS", Message = "Success! Request processed successfully" };
 
-        public static readonly ApiStatus Created =
-            new() { HttpCode = 201, StatusCode = "CREATED", Message = "Success! Resource created successfully" };
-
+        public static readonly ApiStatus PasswordResetSuccess =
+           new() { HttpCode = 200, StatusCode = "PASSWORD_RESET_SUCCESS", Message = "Success! Password has been reset successfully." };
 
 
         //================================ Client error related statuses 4XX ================================
@@ -56,10 +55,16 @@ namespace my_api_app.Responses
         public static readonly ApiStatus InvalidPasswordResetToken =
             new() { HttpCode = 401, StatusCode = "INVALID_PASSWORD_RESET_TOKEN", Message = "Unauthorized! Invalid password reset token" };
 
+        public static readonly ApiStatus TokenGenerationFailed =
+            new() { HttpCode = 500, StatusCode = "TOKEN_GENERATION_FAILED", Message = "Token generation failed due to an internal error" };
+
 
 
 
         //================================ User related statuses ================================
+
+        public static readonly ApiStatus UserCreated =
+            new() { HttpCode = 201, StatusCode = "USER_CREATED", Message = "Success! User created successfully" };
 
         public static readonly ApiStatus UserNotFound =
             new() { HttpCode = 404, StatusCode = "USER_NOT_FOUND", Message = "Not Found! User not found" };
@@ -78,10 +83,13 @@ namespace my_api_app.Responses
         //================================ OTP related statuses ================================
 
         public static readonly ApiStatus OtpSent =
-            new() { HttpCode = 200, StatusCode = "OTP_SENT", Message = "Success! OTP sent successfully" };
+            new() { HttpCode = 200, StatusCode = "OTP_SENT", Message = "Success! OTP sent to registered email." };
+
+        public static readonly ApiStatus PasswordResetOtpSent =
+            new() { HttpCode = 200, StatusCode = "PASSWORD_RESET_OTP_SENT", Message = "Success! If the email is registered, an OTP has been sent." };
 
         public static readonly ApiStatus OtpVerified =
-            new() { HttpCode = 200, StatusCode = "OTP_VERIFIED", Message = "Success! OTP verified successfully" };
+            new() { HttpCode = 200, StatusCode = "OTP_VERIFIED", Message = "Success! OTP verified successfully." };
 
         public static readonly ApiStatus InvalidOtp =
             new() { HttpCode = 401, StatusCode = "INVALID_OTP", Message = "Invalid OTP! Provided OTP is invalid" };
@@ -94,6 +102,9 @@ namespace my_api_app.Responses
 
         public static readonly ApiStatus UnsupportedOtpPurpose =
             new() { HttpCode = 401, StatusCode = "UNSUPORTED_OTP_PURPOSE", Message = "Bad Request! OTP purpose is invalid." };
+
+        public static readonly ApiStatus OtpDeliveryFailed =
+            new() { HttpCode = 502, StatusCode = "OTP_DELIVERY_FAILED", Message = "Bad Gateway! Failed to deliver OTP." };
 
 
 

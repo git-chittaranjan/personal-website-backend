@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿
 using Microsoft.IdentityModel.Tokens;
 using my_api_app.DTOs.Auth.Login;
 using my_api_app.Enums;
@@ -14,31 +14,38 @@ namespace my_api_app.Services.Security.Implementations
 {
     public class JwtTokenService : ITokenService
     {
-        private readonly IConfiguration _config;
         private readonly byte[] _key;
         private readonly string _issuer;
         private readonly string _audience;
         private readonly int _accessTokenMinutes;
-        private readonly int _refreshTokenMinutes;
 
         public JwtTokenService(IConfiguration config)
         {
-            _config = config;
-            var jwtKey = _config["Jwt:Key"];
+            var jwtKey = config["Jwt:Key"];
             if (string.IsNullOrEmpty(jwtKey))
-            {
-                throw new ArgumentException("JWT key configuration ('Jwt:Key') is missing or empty.", nameof(config));
-            }
+                throw new ArgumentNullException("Jwt:Key is missing from configuration.");
+
+            var issuer = config["Jwt:Issuer"];
+            if (string.IsNullOrEmpty(issuer))
+                throw new ArgumentNullException("Jwt:Issuer is missing from configuration.");
+
+            var audience = config["Jwt:Audience"];
+            if (string.IsNullOrEmpty(audience))
+                throw new ArgumentNullException("Jwt:Audience is missing from configuration.");
+
+            if (!int.TryParse(config["Jwt:AccessTokenExpiryMinutes"], out var accessTokenMinutes))
+                throw new ArgumentNullException("Jwt:AccessTokenExpiryMinutes is missing in configuration.");
+
             _key = Encoding.UTF8.GetBytes(jwtKey);
-            _issuer = _config["Jwt:Issuer"] ?? "api";
-            _audience = _config["Jwt:Audience"] ?? "apiUsers";
-            _accessTokenMinutes = int.Parse(_config["Jwt:AccessTokenExpiryMinutes"] ?? "15");
-            _refreshTokenMinutes = int.Parse(_config["RefreshToken:ExpiryMinutes"] ?? "60");
+            _issuer = issuer;
+            _audience = audience;
+            _accessTokenMinutes = accessTokenMinutes;
         }
 
         public UserLoginResponseDto GenerateAccessToken(User user, JwtTokenPurpose tokenPurpose)
         {
             var now = DateTimeOffset.UtcNow;
+            var expiry = DateTime.UtcNow.AddMinutes(_accessTokenMinutes);
 
             var claims = new List<Claim>
             {
@@ -51,7 +58,7 @@ namespace my_api_app.Services.Security.Implementations
                 new Claim(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
                 // MFA
                 new Claim("email_verified", true.ToString()),
-                new Claim("mfa", "true"),
+                new Claim("mfa", true.ToString()),
                 new Claim("purpose", tokenPurpose.ToString())
             };
 
@@ -62,7 +69,7 @@ namespace my_api_app.Services.Security.Implementations
                 issuer: _issuer,
                 audience: _audience,
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(_accessTokenMinutes),
+                expires: expiry,
                 signingCredentials: creds
             );
 
@@ -74,7 +81,7 @@ namespace my_api_app.Services.Security.Implementations
                 Email = user.Email,
                 Name = user.Name,
                 AccessToken = serializedToken,
-                AccessTokenExpiry = DateTime.UtcNow.AddMinutes(_accessTokenMinutes),
+                ExpiresAt = expiry,
                 TokenType = "Bearer"
             };
 
@@ -103,51 +110,6 @@ namespace my_api_app.Services.Security.Implementations
                 Name = name,
                 TokenPurpose = purpose
             };
-        }
-
-
-
-        public (string token, DateTime expiresAt) GenerateRefreshToken()
-        {
-            var randomBytes = RandomNumberGenerator.GetBytes(64);
-            var token = Convert.ToBase64String(randomBytes);
-            var expiresAt = DateTime.UtcNow.AddMinutes(_refreshTokenMinutes);
-            return (token, expiresAt);
-        }
-
-
-
-        public ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
-        {
-            var tokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateAudience = true,
-                ValidAudience = _audience, // Must match "app.chittaranjansaha.com,postman"
-                ValidateIssuer = true,
-                ValidIssuer = _issuer, // Must match your API domain
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(_key), // Signature must match your _key
-                ValidateLifetime = false // Allow processing expired tokens
-            };
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-
-            try
-            {
-                var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
-
-                if (securityToken is JwtSecurityToken jwt && jwt.Header.Alg.Equals(SecurityAlgorithms.HmacSha256,
-                    StringComparison.InvariantCultureIgnoreCase))
-                {
-                    return principal;
-                }
-            }
-            catch
-            {
-                return null;
-            }
-
-            return null;
         }
     }
 }

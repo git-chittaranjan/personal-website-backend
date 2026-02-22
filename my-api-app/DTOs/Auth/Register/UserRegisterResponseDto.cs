@@ -2,6 +2,8 @@
 {
     public class UserRegisterResponseDto
     {
-        public string Message { get; set; } = default!;
+        public Guid UserId { get; set; }
+        public string Email { get; set; } = default!;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 }

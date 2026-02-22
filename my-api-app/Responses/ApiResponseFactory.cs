@@ -1,11 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using my_api_app.Responses;
+﻿using my_api_app.Helpers;
 using System.Text.Json;
 
-namespace my_api_app.Helpers
+namespace my_api_app.Responses
 {
-    public static class ApiResponseFactory
+    public class ApiResponseFactory : IApiResponseFactory
     {
         private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
         {
@@ -15,22 +13,22 @@ namespace my_api_app.Helpers
 
         //IHttpContextAccessor s a wrapper that allows to access HttpContext from anywhere outside Controllers and Middlewares
         //Controllers and middleware have direct access to HttpContext, but services, helpers, and other classes do not
-        private static IHttpContextAccessor? _httpContextAccessor;
+        private readonly IHttpContextAccessor _context;
 
-        // Called once at startup
-        public static void Configure(IHttpContextAccessor httpContextAccessor)
+        public ApiResponseFactory(IHttpContextAccessor context)
         {
-            _httpContextAccessor = httpContextAccessor;
+            _context = context;
         }
+        
         //Evaluated on every times method is called giving the correct TraceId for each request.
-        private static string? GetTraceId()
+        private string? GetTraceId()
         {
-            return _httpContextAccessor?.HttpContext?.TraceIdentifier;
+            return _context?.HttpContext?.TraceIdentifier;
         }
 
 
         // Success response without data
-        public static ApiResponse<object> Success(ApiStatus status)
+        public ApiResponse<object> Success(ApiStatus status)
         {
             return new ApiResponse<object>
             {
@@ -39,14 +37,16 @@ namespace my_api_app.Helpers
                 Description = status.Message,
                 Data = null,
                 Errors = null,
-                Pagination = new Pagination(),
+                Pagination = null,
                 TraceId = GetTraceId(),
             };
         }
 
         // Success response with data
-        public static ApiResponse<T> Success<T>(ApiStatus status, T data, Pagination? pagination = null)
+        public ApiResponse<T> Success<T>(ApiStatus status, T data, Pagination? pagination = null)
         {
+            ArgumentNullException.ThrowIfNull(data); // Fail fast if null is passed accidentally
+
             return new ApiResponse<T>
             {
                 Success = true,
@@ -54,13 +54,13 @@ namespace my_api_app.Helpers
                 Description = status.Message,
                 Data = data,
                 Errors = null,
-                Pagination = pagination,
-                TraceId = GetTraceId(), 
+                Pagination = new Pagination(),
+                TraceId = GetTraceId(),
             };
         }
 
-        // Error response
-        public static ApiResponse<object> Failure(ApiStatus status, object? errors = null)
+        // Error response: Use this to returnn failure without throwing an exception
+        public ApiResponse<object> Failure(ApiStatus status, object? errors = null)
         {
             return new ApiResponse<object>
             {

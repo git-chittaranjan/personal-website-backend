@@ -1,5 +1,4 @@
-﻿
-using my_api_app.Enums;
+﻿using my_api_app.Enums;
 using my_api_app.Exceptions.BusinessExceptions.OtpExceptions;
 using my_api_app.Helpers;
 using my_api_app.Models.Auth;
@@ -30,7 +29,15 @@ namespace my_api_app.Services.Security.Implementations
             DateTime expiresAt = DateTime.UtcNow.AddMinutes(expiryMinutes);
 
             await _otpRepository.SaveOtpAsync(email, otp, expiresAt, purpose, cancellationToken);
-            await _emailService.SendEmailAsync(name, email, otp, expiryMinutes);
+
+            try
+            {
+                await _emailService.SendEmailAsync(name, email, otp, expiryMinutes, purpose);
+            }
+            catch (Exception)
+            {
+                throw new OtpDeliveryFailedException();
+            }
         }
 
 

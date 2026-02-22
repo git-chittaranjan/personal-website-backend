@@ -1,9 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using my_api_app.DTOs;
-using my_api_app.Helpers;
-using my_api_app.Responses;
 
-namespace my_api_app.Extensions
+namespace my_api_app.Responses.Extensions
 {
     public static class ModelValidationResponseExtension
     {
@@ -22,7 +20,10 @@ namespace my_api_app.Extensions
                         }))
                         .ToList();
 
-                    var response = ApiResponseFactory.Failure(Statuses.ValidationFailed, errors);
+                    // Call the IApiResponseFactory (Every HttpContext contains a scoped DI container in RequestServices.
+                    var responseFactory = context.HttpContext.RequestServices.GetRequiredService<IApiResponseFactory>();
+
+                    var response = responseFactory.Failure(Statuses.ValidationFailed, errors);
 
                     return new BadRequestObjectResult(response)
                     {

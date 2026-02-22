@@ -3,12 +3,13 @@ using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using my_api_app.Data;
-using my_api_app.Extensions;
 using my_api_app.Helpers;
 using my_api_app.Middlewares.Exception;
 using my_api_app.Middlewares.Logging;
 using my_api_app.Repositories.Implementations;
 using my_api_app.Repositories.Interfaces;
+using my_api_app.Responses;
+using my_api_app.Responses.Extensions;
 using my_api_app.Services.Auth;
 using my_api_app.Services.Security.Implementations;
 using my_api_app.Services.Security.Interfaces;
@@ -42,6 +43,7 @@ builder.Services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepo
 builder.Services.AddScoped<IResetTokenHasher, ResetTokenHasher>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddCustomModelValidationResponse();
+builder.Services.AddSingleton<IApiResponseFactory, ApiResponseFactory>();
 
 // ------------------------------
 // JWT Authentication
@@ -106,7 +108,7 @@ builder.Services.AddCors(options =>
 // ------------------------------
 WebApplication app = builder.Build();
 Console.WriteLine($"Environment Name: {app.Environment.EnvironmentName}");
-app.ConfigureApiResponseHelper(); // Configure ApiResponseHelper with IHttpContextAccessor
+//app.ConfigureApiResponseHelper(); // Configure ApiResponseHelper with IHttpContextAccessor
 
 
 // 1. FIRST: Custom loggers (runs on ALL requests)

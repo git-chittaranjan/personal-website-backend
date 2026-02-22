@@ -13,6 +13,9 @@ namespace my_api_app.Services.Security.Implementations
 
         public (byte[] hash, byte[] salt) HashPassword(string password)
         {
+            if (string.IsNullOrEmpty(password))
+                throw new ArgumentNullException(nameof(password));
+
             var salt = RandomNumberGenerator.GetBytes(SaltSize);
 
             var derived = KeyDerivation.Pbkdf2(
@@ -27,6 +30,13 @@ namespace my_api_app.Services.Security.Implementations
 
         public bool VerifyPassword(string password, byte[] storedHash, byte[] storedSalt)
         {
+            if (string.IsNullOrEmpty(password))
+                throw new ArgumentNullException(nameof(password));
+            if (storedHash == null || storedHash.Length == 0)
+                throw new ArgumentNullException(nameof(storedHash));
+            if (storedSalt == null || storedSalt.Length == 0)
+                throw new ArgumentNullException(nameof(storedSalt));
+
             var derived = KeyDerivation.Pbkdf2(
                 password: password,
                 salt: storedSalt,

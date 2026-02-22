@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using my_api_app.Data;
 using my_api_app.Enums;
+using my_api_app.Exceptions.BusinessExceptions.ServerExceptions;
 using my_api_app.Models.Auth;
 using my_api_app.Repositories.Interfaces;
 
@@ -34,9 +35,12 @@ namespace my_api_app.Repositories.Implementations
 
 
 
-        public async Task<bool> CreateUserAsync(string name, string email, Gender? gender, byte[] hash, byte[] salt, CancellationToken cancellationToken)
+        public async Task<CreatedUserResult> CreateUserAsync(string name, string email, Gender? gender, byte[] hash, byte[] salt, CancellationToken cancellationToken)
         {
-            const string sql = "INSERT INTO Users (Name, Email, Gender, PasswordHash, PasswordSalt, IsEmailVerified) VALUES (@Name, @Email, @Gender, @Hash, @Salt, 1);";
+            const string sql = @"
+                INSERT INTO Users (Name, Email, Gender, PasswordHash, PasswordSalt, IsEmailVerified)
+                OUTPUT INSERTED.UserId, INSERTED.CreatedAt
+                VALUES (@Name, @Email, @Gender, @Hash, @Salt, 1);";
 
             using SqlConnection con = _factory.CreateConnection();
             using SqlCommand cmd = new SqlCommand(sql, con);
@@ -48,9 +52,16 @@ namespace my_api_app.Repositories.Implementations
             cmd.Parameters.AddWithValue("@Salt", salt);
 
             await con.OpenAsync(cancellationToken);
-            var rows = await cmd.ExecuteNonQueryAsync(cancellationToken);
+            using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
-            return rows == 1;
+            if (!await reader.ReadAsync(cancellationToken))
+                throw new InternalServerException(); // INSERT succeeded but returned no row
+
+            return new CreatedUserResult
+            {
+                UserID = reader.GetGuid(0),
+                CreatedAt = reader.GetDateTime(1)
+            };
         }
 
 

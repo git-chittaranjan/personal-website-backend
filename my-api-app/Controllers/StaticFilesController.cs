@@ -1,16 +1,18 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using my_api_app.Exceptions.BusinessExceptions;
 using my_api_app.Responses;
+using System.Buffers.Text;
 
 namespace my_api_app.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class StaticController : ControllerBase
+    public class StaticController : BaseApiController
     {
         private readonly IWebHostEnvironment _env;
 
-        public StaticController(IWebHostEnvironment env)
+        public StaticController(IWebHostEnvironment env, IApiResponseFactory responseFactory)
+            : base(responseFactory)
         {
             _env = env;
         }
