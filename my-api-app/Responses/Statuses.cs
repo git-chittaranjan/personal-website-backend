@@ -66,6 +66,9 @@ namespace my_api_app.Responses
         public static readonly ApiStatus UserCreated =
             new() { HttpCode = 201, StatusCode = "USER_CREATED", Message = "Success! User created successfully" };
 
+        public static readonly ApiStatus UserUpdated =
+            new() { HttpCode = 200, StatusCode = "USER_UPDATED", Message = "Success! User profile updated successfully" };
+
         public static readonly ApiStatus UserNotFound =
             new() { HttpCode = 404, StatusCode = "USER_NOT_FOUND", Message = "Not Found! User not found" };
 
@@ -77,6 +80,15 @@ namespace my_api_app.Responses
 
         public static readonly ApiStatus InvalidCredentials =
             new() { HttpCode = 401, StatusCode = "INVALID_CREDENTIALS", Message = "Unauthorized! Invalid login credentials" };
+
+        public static readonly ApiStatus InvalidUserId =
+            new() { HttpCode = 400, StatusCode = "INVALID_USER_ID", Message = "Request failed! The provided UserId is not valid." };
+
+        public static readonly ApiStatus UserDeleted =
+            new() { HttpCode = 200, StatusCode = "USER_DELETED", Message = "Success! User deleted successfully" };
+
+        public static readonly ApiStatus UserDeletionFailed =
+            new() { HttpCode = 400, StatusCode = "USER_DELETION_FAILED", Message = "Unable to delete the specified user" };
 
 
 

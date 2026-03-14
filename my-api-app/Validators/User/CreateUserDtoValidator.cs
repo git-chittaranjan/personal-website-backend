@@ -1,11 +1,11 @@
-﻿using FluentValidation;
-using my_api_app.DTOs.Auth.Register;
+﻿using FluentValidation; 
+using my_api_app.DTOs.User;
 
-namespace my_api_app.Validators.Auth.Register
+namespace my_api_app.Validators.User
 {
-    public class RegisterDtoValidator : AbstractValidator<UserRegisterRequestDto>
+    public class CreateuserDtoValidator : AbstractValidator<CreateUserRequestDto>
     {
-        public RegisterDtoValidator()
+        public CreateuserDtoValidator()
         {
             RuleFor(x => x.Name).NotEmpty().WithMessage("Name is required")
                 .MaximumLength(100).WithMessage("Name must not exceed 100 characters");
@@ -28,4 +28,3 @@ namespace my_api_app.Validators.Auth.Register
         }
     }
 }
-

@@ -1,6 +1,6 @@
 ﻿using my_api_app.Models.Auth;
 
-namespace my_api_app.Repositories.Interfaces
+namespace my_api_app.Repositories.Auth.Interfaces
 {
     public interface IPasswordResetTokenRepository
     {

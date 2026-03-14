@@ -3,9 +3,9 @@ using my_api_app.Data;
 using my_api_app.Enums;
 using my_api_app.Exceptions.BusinessExceptions.ServerExceptions;
 using my_api_app.Models.Auth;
-using my_api_app.Repositories.Interfaces;
+using my_api_app.Repositories.Auth.Interfaces;
 
-namespace my_api_app.Repositories.Implementations
+namespace my_api_app.Repositories.Auth.Implementations
 {
     public class PendingUserRepository : IPendingUserRepository
     {

@@ -19,6 +19,7 @@
 
 	<ItemGroup>
 	  <Folder Include="Middlewares\Security\" />
+	  <Folder Include="Repositories\User\" />
 	</ItemGroup>
 
 </Project>

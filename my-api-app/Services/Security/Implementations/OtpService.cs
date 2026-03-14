@@ -2,7 +2,7 @@
 using my_api_app.Exceptions.BusinessExceptions.OtpExceptions;
 using my_api_app.Helpers;
 using my_api_app.Models.Auth;
-using my_api_app.Repositories.Interfaces;
+using my_api_app.Repositories.Auth.Interfaces;
 using my_api_app.Services.Security.Interfaces;
 
 namespace my_api_app.Services.Security.Implementations

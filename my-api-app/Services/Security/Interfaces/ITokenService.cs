@@ -8,7 +8,7 @@ namespace my_api_app.Services.Security.Interfaces
 {
     public interface ITokenService
     {
-        UserLoginResponseDto? GenerateAccessToken(User user, JwtTokenPurpose tokenPurpose);
+        UserLoginResponseDto? GenerateAccessToken(Models.Auth.User user, JwtTokenPurpose tokenPurpose);
         JwtUserClaims? GetTokenClaims(ClaimsPrincipal userPrincipal);
     }
 }

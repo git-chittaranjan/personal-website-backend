@@ -12,5 +12,6 @@ namespace my_api_app.Models.Auth
         public byte[] PasswordSalt { get; set; } = default!;
         public bool IsEmailVerified { get; set; } = false;
         public bool IsActice { get; set; } = true;
+        public DateTime CreatedAt { get; set; }
     }
 }

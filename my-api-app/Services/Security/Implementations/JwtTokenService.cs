@@ -42,7 +42,7 @@ namespace my_api_app.Services.Security.Implementations
             _accessTokenMinutes = accessTokenMinutes;
         }
 
-        public UserLoginResponseDto GenerateAccessToken(User user, JwtTokenPurpose tokenPurpose)
+        public UserLoginResponseDto GenerateAccessToken(Models.Auth.User user, JwtTokenPurpose tokenPurpose)
         {
             var now = DateTimeOffset.UtcNow;
             var expiry = DateTime.UtcNow.AddMinutes(_accessTokenMinutes);

@@ -8,7 +8,7 @@ using my_api_app.Exceptions.BusinessExceptions.ServerExceptions;
 using my_api_app.Exceptions.BusinessExceptions.TokenExceptions;
 using my_api_app.Exceptions.BusinessExceptions.UserExceptions;
 using my_api_app.Models.Auth;
-using my_api_app.Repositories.Interfaces;
+using my_api_app.Repositories.Auth.Interfaces;
 using my_api_app.Services.Security.Interfaces;
 
 namespace my_api_app.Services.Auth
@@ -47,7 +47,7 @@ namespace my_api_app.Services.Auth
 
             var (hash, salt) = _hasher.HashPassword(dto.Password);
 
-            var pendingUser = new User
+            var pendingUser = new Models.Auth.User
             {
                 Name = dto.Name,
                 Gender = dto.Gender,
@@ -77,7 +77,7 @@ namespace my_api_app.Services.Auth
         // ------------------------------
         public async Task LoginUserAsync(UserLoginRequestDto dto, CancellationToken cancellationToken)
         {
-            var user = await _userRepo.GetUserAsync(dto.Email, cancellationToken);
+            var user = await _userRepo.GetUserByEmailAsync(dto.Email, cancellationToken);
 
             if (user == null)
                 throw new InvalidCredentialsException();
@@ -172,7 +172,7 @@ namespace my_api_app.Services.Auth
         // ------------------------------
         private async Task<object> CompleteLoginAsync(string email, CancellationToken cancellationToken)
         {
-            var user = await _userRepo.GetUserAsync(email, cancellationToken);
+            var user = await _userRepo.GetUserByEmailAsync(email, cancellationToken);
 
             if (user is null)
                 throw new InternalServerException();

@@ -2,10 +2,10 @@
 using my_api_app.Data;
 using my_api_app.Enums;
 using my_api_app.Models.Auth;
-using my_api_app.Repositories.Interfaces;
+using my_api_app.Repositories.Auth.Interfaces;
 using System.Data;
 
-namespace my_api_app.Repositories.Implementations
+namespace my_api_app.Repositories.Auth.Implementations
 {
     public class OtpRepository : IOtpRepository
     {

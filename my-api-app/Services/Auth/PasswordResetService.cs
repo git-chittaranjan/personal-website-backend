@@ -3,13 +3,9 @@ using my_api_app.Enums;
 using my_api_app.Exceptions.BusinessExceptions.ServerExceptions;
 using my_api_app.Exceptions.BusinessExceptions.TokenExceptions;
 using my_api_app.Models.Auth;
-using my_api_app.Repositories.Interfaces;
-using my_api_app.Services.Security.Implementations;
+using my_api_app.Repositories.Auth.Interfaces;
 using my_api_app.Services.Security.Interfaces;
-using System.Security;
-using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Threading;
 
 namespace my_api_app.Services.Auth
 {
@@ -39,7 +35,7 @@ namespace my_api_app.Services.Auth
         // ------------------------------
         public async Task ForgotPasswordAsync(string email, CancellationToken cancellationToken)
         {
-            var user = await _userRepo.GetUserAsync(email, cancellationToken);
+            var user = await _userRepo.GetUserByEmailAsync(email, cancellationToken);
 
             if (user == null)
                 return;
@@ -50,7 +46,7 @@ namespace my_api_app.Services.Auth
 
         public async Task<ForgotPasswordResponseDto> GenerateResetTokenAsync(string email, CancellationToken cancellationToken)
         {
-            var user = await _userRepo.GetUserAsync(email, cancellationToken);
+            var user = await _userRepo.GetUserByEmailAsync(email, cancellationToken);
             if (user == null)
                 throw new InternalServerException();
 
