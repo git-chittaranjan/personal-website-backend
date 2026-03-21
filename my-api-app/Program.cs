@@ -1,10 +1,12 @@
 ﻿using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.IdentityModel.Tokens;
 using my_api_app.Data;
 using my_api_app.DTOs;
-using my_api_app.Filters.Validations;
+using my_api_app.Filters.Authorization;
+using my_api_app.Filters.Logging;
 using my_api_app.Helpers;
 using my_api_app.Middlewares.Exception;
 using my_api_app.Middlewares.Logging;
@@ -23,11 +25,82 @@ using System.Text.Json;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
 
+//Force UTC at application level — works on both local and Azure (Azure by default UTC)
+System.Environment.SetEnvironmentVariable("TZ", "UTC");
+TimeZoneInfo.ClearCachedData();
+
+
+
+// ------------------------------
+// Logging Implementation
+// ------------------------------
+// ── Logger Step 1: Writing Log into Console Provider ────────────────────────────────────────────
+builder.Logging.ClearProviders(); //Clear default providers (Console, Debug, EventSource, EventLog)
+
+// ── Logger Step 2: Writing Log into Console Provider ────────────────────────────────────────────
+if (builder.Environment.IsProduction())
+{
+    builder.Logging.AddJsonConsole(options =>
+    {
+        options.IncludeScopes = true;
+        options.TimestampFormat = "yyyy-MM-dd HH:mm:ss.fff ";
+        options.JsonWriterOptions = new System.Text.Json.JsonWriterOptions
+        {
+            Indented = false
+        };
+    });
+}
+else
+{
+    builder.Logging.AddSimpleConsole(options =>
+    {
+        options.IncludeScopes = true;
+        options.TimestampFormat = "yyyy-MM-dd HH:mm:ss.fff ";
+        options.SingleLine = true;
+    });
+}
+
+// ── Logger Step 3: File Provider (Karambolo Package) ────────────────────────────────────────────
+builder.Logging.AddFile(o => o.RootPath = builder.Environment.ContentRootPath);
+
+// ── Logger Step 4: HTTP Request/Response logging ────────────────────────────────────────────
+builder.Services.AddHttpLogging(logging =>
+{
+    //Common fields for both environments
+    logging.LoggingFields = HttpLoggingFields.RequestMethod
+        | HttpLoggingFields.RequestPath
+        | HttpLoggingFields.RequestQuery
+        | HttpLoggingFields.ResponseStatusCode
+        | HttpLoggingFields.Duration;
+
+    logging.RequestHeaders.Add("X-Correlation-Id");
+    logging.RequestHeaders.Add("X-Request-Id");
+
+    logging.CombineLogs = true;
+
+    if (builder.Environment.IsProduction())
+    {
+        //Production — never log body (sensitive customer data)
+        logging.RequestBodyLogLimit = 0;
+        logging.ResponseBodyLogLimit = 0;
+    }
+    else
+    {
+        //Developement/Staging — log body for debugging
+        logging.LoggingFields |= HttpLoggingFields.RequestBody
+            | HttpLoggingFields.ResponseBody;
+
+        logging.RequestBodyLogLimit = 4096;   // 4 KB
+        logging.ResponseBodyLogLimit = 4096;  // 4 KB
+    }
+});
+
 
 // ------------------------------
 // Dependency Injection (Filters)
 // ------------------------------
-builder.Services.AddScoped<ModelValidationFilter>();
+builder.Services.AddScoped<ApiKeyFilter>();
+builder.Services.AddScoped<RequestLoggingFilter>();
 
 
 
@@ -36,7 +109,8 @@ builder.Services.AddScoped<ModelValidationFilter>();
 // ------------------------------
 builder.Services.AddControllers(options =>
 {
-    options.Filters.Add<ModelValidationFilter>();
+    options.Filters.Add<ApiKeyFilter>();
+    options.Filters.Add<RequestLoggingFilter>();
 })
     .AddJsonOptions(options =>
     {
@@ -156,7 +230,10 @@ builder.Services.AddHsts(options =>
 WebApplication app = builder.Build();
 Console.WriteLine($"Environment Name: {app.Environment.EnvironmentName}");
 
-app.UseConsoleRequestLogger(); // Custom Middleware
+// ── Logger Step 5: Register req/res Middleware ────────────────────────────────────────────
+app.UseHttpLogging(); // Built in Middleware to capture req/response logs
+app.UseConsoleRequestLogger(); // Custom Middleware, not required already handled by app.UseHttpLogging();
+
 app.UseGlobalExceptionMiddleware(); //Custom Middleware
 
 if (!app.Environment.IsDevelopment())
@@ -191,8 +268,15 @@ app.MapGet("/api/chittaranjan", async context =>
     await context.Response.WriteAsync(json);
 });
 
+
+// ── Logger Step 6: Application Startup Log Entry ─────────────────────────────────────────────────
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    var loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
+    var logger = loggerFactory.CreateLogger<Program>();
+
+    logger.LogInformation("Application started. Environment: {Environment} | Time: {Time}", app.Environment.EnvironmentName, DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss UTC"));
+});
+
+
 app.Run();
-
-
-
-

@@ -8,7 +8,6 @@ using System.Text.Json;
 public class GlobalExceptionMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly ILogger<GlobalExceptionMiddleware> _logger;
     private readonly IApiResponseFactory _responseFactory;
 
     // Cached to avoid recreating on every exception
@@ -18,10 +17,9 @@ public class GlobalExceptionMiddleware
     };
 
 
-    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger, IApiResponseFactory responseFactory)
+    public GlobalExceptionMiddleware(RequestDelegate next, IApiResponseFactory responseFactory)
     {
         _next = next;
-        _logger = logger;
         _responseFactory = responseFactory;
     }
 
@@ -33,11 +31,11 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            await HandleExceptionAsync(context, ex, _logger, _responseFactory);
+            await HandleExceptionAsync(context, ex, _responseFactory);
         }
     }
 
-    private static async Task HandleExceptionAsync(HttpContext context, Exception exception, ILogger logger, IApiResponseFactory responseFactory)
+    private static async Task HandleExceptionAsync(HttpContext context, Exception exception, IApiResponseFactory responseFactory)
     {
         context.Response.ContentType = "application/json";
 
@@ -51,7 +49,6 @@ public class GlobalExceptionMiddleware
             case BusinessException be:
                 status = be.Status; //Accesses Status property defined in the BusinessException class and assigns variable status.
                 errorObject = be.Errors;
-                logger.LogWarning(exception, "Business exception occurred");
                 break;
 
             // 2. FOR FLUENT VALIDATION EXCEPTIONS - Not getting called, so added ModelValidationResponseExtension.cs clss
@@ -63,26 +60,22 @@ public class GlobalExceptionMiddleware
                         Field = e.PropertyName,
                         Error = e.ErrorMessage
                     }).ToList();
-                logger.LogWarning(exception, "Validation exception occurred");
                 break;
 
             // 3a. PROGRAMMING ERRORS — is of Internal Server Error type
             case ArgumentNullException ane:
                 status = Statuses.InternalServerError;
-                logger.LogError(exception, "Null argument passed — possible validation pipeline bug");
                 break;
 
             // 3b. ARGUMENT/INVALID OPERATION
             case ArgumentException ae:
                 status = Statuses.BadRequest;
                 errorObject = new[] { ae.Message };
-                logger.LogWarning(exception, "Argument exception occurred");
                 break;
 
             // 4. FALLBACK: ANY OTHER SYSTEM/UNHANDLED EXCEPTION
             default:
                 status = Statuses.InternalServerError;
-                logger.LogError(exception, "Unhandled system exception occurred");
                 break;
         }
 

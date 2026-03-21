@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using my_api_app.Exceptions.BusinessExceptions;
-using my_api_app.Filters.Validations;
 using my_api_app.Responses;
 using System.Buffers.Text;
 
@@ -19,7 +18,6 @@ namespace my_api_app.Controllers
         }
 
         [HttpGet("images/{fileName}")]
-        [ServiceFilter(typeof(ModelValidationFilter))]  // Custom Model validation filter
         public IActionResult GetImage(string fileName)
         {
             var path = Path.Combine(_env.WebRootPath, "images", fileName);

@@ -4,7 +4,8 @@
       "commandName": "Project",
       "launchBrowser": false, //false: This will not open browser on startup
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "TZ": "UTC" //Force UTC at application level
       },
       "applicationUrl": "https://localhost:50646;http://localhost:50647"
     },
@@ -13,7 +14,8 @@
       "commandName": "Project",
       "launchBrowser": false,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Production"
+        "ASPNETCORE_ENVIRONMENT": "Production",
+        "TZ": "UTC"
       },
       "applicationUrl": "https://localhost:50646;http://localhost:50647" //You can use different port
     }

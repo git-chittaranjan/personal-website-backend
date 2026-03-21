@@ -130,5 +130,17 @@ namespace my_api_app.Responses
 
         public static readonly ApiStatus SmtpServiceUnavailable =
             new() { HttpCode = 503, StatusCode = "SMTP_SERVICE_UNAVAILABLE", Message = "SMTP service is temporarily unavailable" };
+
+
+
+        //================================ API Key related statuses ================================
+        public static readonly ApiStatus ApiKeyMissing =
+            new() { HttpCode = 401, StatusCode = "API_KEY_MISSING", Message = "Unauthorized! API Key is missing." };
+
+        public static readonly ApiStatus ApiKeyInvalid =
+            new() { HttpCode = 403, StatusCode = "API_KEY_INVALID", Message = "Forbidden! Invalid API Key." };
+
+        public static readonly ApiStatus ApiKeyNotConfigured =
+            new() { HttpCode = 500, StatusCode = "API_KEY_NOT_CONFIGURED", Message = "Server Error! API Key is not configured on the server." };
     }
 }

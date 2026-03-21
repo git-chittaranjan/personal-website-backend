@@ -5,12 +5,6 @@ namespace my_api_app.Responses
 {
     public class ApiResponseFactory : IApiResponseFactory
     {
-        private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = new SnakeCaseNamingPolicy()
-        };
-
-
         //IHttpContextAccessor s a wrapper that allows to access HttpContext from anywhere outside Controllers and Middlewares
         //Controllers and middleware have direct access to HttpContext, but services, helpers, and other classes do not
         private readonly IHttpContextAccessor _context;
@@ -19,7 +13,7 @@ namespace my_api_app.Responses
         {
             _context = context;
         }
-        
+
         //Evaluated on every times method is called giving the correct TraceId for each request.
         private string? GetTraceId()
         {
