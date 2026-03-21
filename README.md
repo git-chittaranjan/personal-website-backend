@@ -18,6 +18,7 @@ A secure User Registration/Login application, built in ASP.NET Core Web API, usi
 - FluentValidation.AspNetCore" Version="11.3.1"
 - Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.1"
 - Microsoft.Data.SqlClient" Version="6.1.3"
+- •	dotnet add package Karambolo.Extensions.Logging.File 
 
 
 ## Authentication Flow
