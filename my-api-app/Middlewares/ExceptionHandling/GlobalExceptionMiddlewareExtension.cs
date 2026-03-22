@@ -1,6 +1,6 @@
 ﻿using my_api_app.Middlewares.Logging;
 
-namespace my_api_app.Middlewares.Exception
+namespace my_api_app.Middlewares.ExceptionHandling
 {
     public static class GlobalExceptionMiddlewareExtension
     {

@@ -17,7 +17,7 @@ namespace my_api_app.Responses
         //Evaluated on every times method is called giving the correct TraceId for each request.
         private string? GetTraceId()
         {
-            return _context?.HttpContext?.TraceIdentifier;
+            return _context?.HttpContext?.TraceIdentifier ?? "no-context";
         }
 
 

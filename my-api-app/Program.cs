@@ -1,14 +1,14 @@
 ﻿using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.IdentityModel.Tokens;
 using my_api_app.Data;
 using my_api_app.DTOs;
+using my_api_app.Extensions;
 using my_api_app.Filters.Authorization;
 using my_api_app.Filters.Logging;
 using my_api_app.Helpers;
-using my_api_app.Middlewares.Exception;
+using my_api_app.Middlewares.ExceptionHandling;
 using my_api_app.Middlewares.Logging;
 using my_api_app.Repositories.Auth.Implementations;
 using my_api_app.Repositories.Auth.Interfaces;
@@ -19,11 +19,16 @@ using my_api_app.Services.Security.Implementations;
 using my_api_app.Services.Security.Interfaces;
 using my_api_app.Services.User;
 using my_api_app.Validators.Auth.Register;
+using Serilog;
+using Serilog.Events;
 using System.Text;
 using System.Text.Json;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
+builder.Services.AddHttpContextAccessor();
+
+
 
 //Force UTC at application level — works on both local and Azure (Azure by default UTC)
 System.Environment.SetEnvironmentVariable("TZ", "UTC");
@@ -34,73 +39,18 @@ TimeZoneInfo.ClearCachedData();
 // ------------------------------
 // Logging Implementation
 // ------------------------------
-// ── Logger Step 1: Writing Log into Console Provider ────────────────────────────────────────────
-builder.Logging.ClearProviders(); //Clear default providers (Console, Debug, EventSource, EventLog)
+builder.Logging.ClearProviders();
+builder.Host.AddSerilogLogging();
+//builder.Logging.AddFile(o => o.RootPath = builder.Environment.ContentRootPath); -- Karambolo Package
+builder.Services.AddHttpLoggingConfiguration(builder.Environment);
 
-// ── Logger Step 2: Writing Log into Console Provider ────────────────────────────────────────────
-if (builder.Environment.IsProduction())
-{
-    builder.Logging.AddJsonConsole(options =>
-    {
-        options.IncludeScopes = true;
-        options.TimestampFormat = "yyyy-MM-dd HH:mm:ss.fff ";
-        options.JsonWriterOptions = new System.Text.Json.JsonWriterOptions
-        {
-            Indented = false
-        };
-    });
-}
-else
-{
-    builder.Logging.AddSimpleConsole(options =>
-    {
-        options.IncludeScopes = true;
-        options.TimestampFormat = "yyyy-MM-dd HH:mm:ss.fff ";
-        options.SingleLine = true;
-    });
-}
-
-// ── Logger Step 3: File Provider (Karambolo Package) ────────────────────────────────────────────
-builder.Logging.AddFile(o => o.RootPath = builder.Environment.ContentRootPath);
-
-// ── Logger Step 4: HTTP Request/Response logging ────────────────────────────────────────────
-builder.Services.AddHttpLogging(logging =>
-{
-    //Common fields for both environments
-    logging.LoggingFields = HttpLoggingFields.RequestMethod
-        | HttpLoggingFields.RequestPath
-        | HttpLoggingFields.RequestQuery
-        | HttpLoggingFields.ResponseStatusCode
-        | HttpLoggingFields.Duration;
-
-    logging.RequestHeaders.Add("X-Correlation-Id");
-    logging.RequestHeaders.Add("X-Request-Id");
-
-    logging.CombineLogs = true;
-
-    if (builder.Environment.IsProduction())
-    {
-        //Production — never log body (sensitive customer data)
-        logging.RequestBodyLogLimit = 0;
-        logging.ResponseBodyLogLimit = 0;
-    }
-    else
-    {
-        //Developement/Staging — log body for debugging
-        logging.LoggingFields |= HttpLoggingFields.RequestBody
-            | HttpLoggingFields.ResponseBody;
-
-        logging.RequestBodyLogLimit = 4096;   // 4 KB
-        logging.ResponseBodyLogLimit = 4096;  // 4 KB
-    }
-});
 
 
 // ------------------------------
 // Dependency Injection (Filters)
 // ------------------------------
 builder.Services.AddScoped<ApiKeyFilter>();
-builder.Services.AddScoped<RequestLoggingFilter>();
+builder.Services.AddScoped<ActionLoggingFilter>();
 
 
 
@@ -110,7 +60,7 @@ builder.Services.AddScoped<RequestLoggingFilter>();
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ApiKeyFilter>();
-    options.Filters.Add<RequestLoggingFilter>();
+    options.Filters.Add<ActionLoggingFilter>();
 })
     .AddJsonOptions(options =>
     {
@@ -119,7 +69,7 @@ builder.Services.AddControllers(options =>
     });
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterDtoValidator>();
-builder.Services.AddHttpContextAccessor(); // required for IHttpContextAccessor
+
 
 
 // ------------------------------
@@ -151,6 +101,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddCustomModelValidationResponse();
 
 
+
 // ------------------------------
 // Kestrel Configuration to listen port no 5000 and 5001
 // ------------------------------
@@ -162,6 +113,7 @@ builder.WebHost.ConfigureKestrel(options =>
         listenOptions.UseHttps(); // HTTPS
     });
 });
+
 
 
 // ------------------------------
@@ -191,7 +143,6 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 });
-
 builder.Services.AddAuthorization();
 
 
@@ -212,6 +163,7 @@ builder.Services.AddCors(options =>
 });
 
 
+
 // ------------------------------
 // Add HSTS Service
 // ------------------------------
@@ -224,17 +176,51 @@ builder.Services.AddHsts(options =>
 });
 
 
-// ------------------------------
+
+
+
+
+// ===============================================================================================================
 // Build app
-// ------------------------------
+// ===============================================================================================================
+
 WebApplication app = builder.Build();
 Console.WriteLine($"Environment Name: {app.Environment.EnvironmentName}");
 
-// ── Logger Step 5: Register req/res Middleware ────────────────────────────────────────────
-app.UseHttpLogging(); // Built in Middleware to capture req/response logs
-app.UseConsoleRequestLogger(); // Custom Middleware, not required already handled by app.UseHttpLogging();
 
-app.UseGlobalExceptionMiddleware(); //Custom Middleware
+
+// ------------------------------
+// Middlewares Registration
+// ------------------------------
+app.UseCorrelationGeneratorIdMiddleware();
+
+app.UseSerilogRequestLogging(opts =>
+{
+    opts.MessageTemplate =
+        "HTTP {RequestMethod} {RequestPath} → {StatusCode} in {Elapsed:0.0000}ms";
+
+    opts.GetLevel = (ctx, elapsed, ex) =>
+    {
+        if (ex != null || ctx.Response.StatusCode >= 500) return LogEventLevel.Error;
+        if (ctx.Response.StatusCode >= 400) return LogEventLevel.Warning;
+        if (elapsed > 2000) return LogEventLevel.Warning;
+        if (ctx.Request.Path.StartsWithSegments("/health")) return LogEventLevel.Verbose;
+        return LogEventLevel.Information;
+    };
+
+    // Only properties NOT already in LogContext from CorrelationIdGenerator
+    opts.EnrichDiagnosticContext = (diag, ctx) =>
+    {
+        diag.Set("ContentLength", ctx.Request.ContentLength);
+        diag.Set("StatusCode", ctx.Response.StatusCode);
+    };
+});
+
+app.UseHttpLogging(); // Built in Middleware to capture req/res logs
+
+app.UseConsoleRequestLogger();
+
+app.UseGlobalExceptionMiddleware();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -269,7 +255,10 @@ app.MapGet("/api/chittaranjan", async context =>
 });
 
 
-// ── Logger Step 6: Application Startup Log Entry ─────────────────────────────────────────────────
+
+// ------------------------------
+// Middlewares Registration
+// ------------------------------
 app.Lifetime.ApplicationStarted.Register(() =>
 {
     var loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
@@ -277,6 +266,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
 
     logger.LogInformation("Application started. Environment: {Environment} | Time: {Time}", app.Environment.EnvironmentName, DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss UTC"));
 });
+
 
 
 app.Run();
