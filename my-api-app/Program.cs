@@ -2,22 +2,25 @@
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using my_api_app.Data;
-using my_api_app.DTOs;
-using my_api_app.Extensions;
-using my_api_app.Filters.Authorization;
-using my_api_app.Filters.Logging;
-using my_api_app.Helpers;
-using my_api_app.Middlewares.ExceptionHandling;
-using my_api_app.Middlewares.Logging;
-using my_api_app.Repositories.Auth.Implementations;
-using my_api_app.Repositories.Auth.Interfaces;
-using my_api_app.Responses;
-using my_api_app.Services.Auth;
-using my_api_app.Services.Security.Implementations;
-using my_api_app.Services.Security.Interfaces;
-using my_api_app.Services.User;
-using my_api_app.Validators.Auth.Register;
+using my_api_app.Core.Extensions;
+using my_api_app.Core.Filters.Authorization;
+using my_api_app.Core.Filters.Logging;
+using my_api_app.Core.Helpers;
+using my_api_app.Core.Middlewares.ExceptionHandling;
+using my_api_app.Core.Middlewares.Logging;
+using my_api_app.Core.Responses;
+using my_api_app.Features.Auth.Services;
+using my_api_app.Features.Auth.Validators.Register;
+using my_api_app.Features.User.DTOs.AboutMe;
+using my_api_app.Features.User.Services;
+using my_api_app.Infrastructure.Database;
+using my_api_app.Infrastructure.Email;
+using my_api_app.Infrastructure.OTP;
+using my_api_app.Infrastructure.Security.Hasher;
+using my_api_app.Infrastructure.Security.Token;
+using my_api_app.Repositories.Auth;
+using my_api_app.Repositories.User;
+using my_api_app.Repositories.UserRepo;
 using System.Text;
 using System.Text.Json;
 
@@ -65,7 +68,7 @@ builder.Services.AddControllers(options =>
         options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never; //return property with null value
     });
 builder.Services.AddFluentValidationAutoValidation();
-builder.Services.AddValidatorsFromAssemblyContaining<RegisterDtoValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<UserRegisterRequestDtoValidator>();
 
 
 
@@ -79,7 +82,7 @@ builder.Services.AddSingleton<IApiResponseFactory, ApiResponseFactory>();
 // Utilities / Low-Level Services ───────────────────────────
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IResetTokenHasher, ResetTokenHasher>();
-builder.Services.AddScoped<ITokenService, JwtTokenService>();
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 
@@ -213,7 +216,7 @@ app.MapControllers();
 app.MapGet("/", () => Results.Redirect("/api/chittaranjan", permanent: true));
 app.MapGet("/api/chittaranjan", async context =>
 {
-    var aboutMe = new AboutMeDto()
+    var aboutMe = new AboutMeResponseDto()
     {
         Name = "Chittaranjan Saha",
         Gender = "Male",

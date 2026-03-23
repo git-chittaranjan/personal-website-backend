@@ -1,13 +1,13 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using my_api_app.Core.Exceptions.BusinessExceptions.OtpExceptions;
+using my_api_app.Core.Responses;
+using my_api_app.Domain.Enums;
+using my_api_app.Domain.Models;
 using my_api_app.DTOs.Auth;
-using my_api_app.DTOs.Auth.Login;
-using my_api_app.DTOs.Auth.Otp;
-using my_api_app.DTOs.Auth.Register;
-using my_api_app.Enums;
-using my_api_app.Exceptions.BusinessExceptions.OtpExceptions;
-using my_api_app.Models.Auth;
-using my_api_app.Responses;
-using my_api_app.Services.Auth;
+using my_api_app.Features.Auth.DTOs.Login;
+using my_api_app.Features.Auth.DTOs.Otp;
+using my_api_app.Features.Auth.DTOs.Register;
+using my_api_app.Features.Auth.Services;
 
 namespace my_api_app.Controllers
 {

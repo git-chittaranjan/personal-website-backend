@@ -1,21 +1,34 @@
 ﻿
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using my_api_app.DTOs.User;
-using my_api_app.Responses;
-using my_api_app.Services.User;
+using my_api_app.Core.Filters.Logging;
+using my_api_app.Core.Responses;
+using my_api_app.Features.User.DTOs;
+using my_api_app.Features.User.DTOs.CreateUser;
+using my_api_app.Features.User.DTOs.GetUsers;
+using my_api_app.Features.User.DTOs.PatchUser;
+using my_api_app.Features.User.DTOs.UpdateUser;
+using my_api_app.Features.User.Services;
+using System.Security.Claims;
 
 namespace my_api_app.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
+    //[ServiceFilter(typeof(ActionLoggingFilter))] -- Applied Globally in Program.cs
     public class UsersController : BaseApiController
     {
         private readonly IUserService _userService;
+        private readonly ILogger<UsersController> _logger;
 
-        public UsersController(IUserService userService, IApiResponseFactory apiResponseFactory) : base(apiResponseFactory)
+        public UsersController(IUserService userService, IApiResponseFactory apiResponseFactory, ILogger<UsersController> logger) : base(apiResponseFactory)
         {
             _userService = userService;
+            _logger = logger;
         }
+
+        private string GetAdminId() => User?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "anonymous";
 
 
 
@@ -25,7 +38,12 @@ namespace my_api_app.Controllers
         [HttpPost()]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequestDto request, CancellationToken cancellationToken)
         {
-            CreateUserResponse user = await _userService.CreateUserAsync(request, cancellationToken);
+            var adminId = GetAdminId();
+            _logger.LogInformation("Admin {AdminId} creating user with Email: {Email}", adminId, request.Email);
+
+            CreateUserResponseDto user = await _userService.CreateUserAsync(request, cancellationToken);
+
+            _logger.LogInformation("Admin {AdminId} created user successfully with UserId: {UserId}", adminId, user.UserId);
 
             return CreatedResponse(Statuses.UserCreated, user);
         }
@@ -38,7 +56,10 @@ namespace my_api_app.Controllers
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetUserById(Guid id, CancellationToken cancellationToken)
         {
-            UserResponseDto user = await _userService.GetUserByIdAsync(id, cancellationToken);
+            var adminId = GetAdminId();
+            _logger.LogInformation("Admin {AdminId} fetching user with UserId: {UserId}", adminId, id);
+
+            GetUserResponseDto user = await _userService.GetUserByIdAsync(id, cancellationToken);
 
             return SuccessResponse(Statuses.Success, user);
         }
@@ -51,9 +72,16 @@ namespace my_api_app.Controllers
         [HttpGet()]
         public async Task<IActionResult> GetAllUsers([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
         {
-            PagedResult<UserResponseDto> result = await _userService.GetAllUsersAsync(pageNumber, pageSize, cancellationToken);
+            var adminId = GetAdminId();
+            _logger.LogInformation("Admin {AdminId} fetching all users - Page {PageNumber}, Size {PageSize}", adminId, pageNumber, pageSize);
 
-            return SuccessResponse(Statuses.Success, result);
+            if (pageNumber < 1) pageNumber = 1; //pageNumber: Current page number being requested
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100; //PageSize: Number of records to be returned per page
+
+            var (users, pagination) = await _userService.GetAllUsersAsync(pageNumber, pageSize, cancellationToken);
+
+            return SuccessResponse(Statuses.Success, users, pagination);
         }
 
 
@@ -64,7 +92,12 @@ namespace my_api_app.Controllers
         [HttpPut("{id:guid}")]
         public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UpdateUserRequestDto request, CancellationToken cancellationToken)
         {
-            UserResponseDto user = await _userService.UpdateUserAsync(id, request, cancellationToken);
+            var adminId = GetAdminId();
+            _logger.LogInformation("Admin {AdminId} updating user with UserId: {UserId}", adminId, id);
+
+            GetUserResponseDto user = await _userService.UpdateUserAsync(id, request, cancellationToken);
+
+            _logger.LogInformation("Admin {AdminId} updated user successfully with UserId: {UserId}", adminId, user.UserId);
 
             return SuccessResponse(Statuses.UserUpdated, user);
         }
@@ -77,7 +110,12 @@ namespace my_api_app.Controllers
         [HttpPatch("{id:guid}")]
         public async Task<IActionResult> PatchUser(Guid id, [FromBody] PatchUserRequestDto request, CancellationToken cancellationToken)
         {
-            UserResponseDto user = await _userService.PatchUserAsync(id, request, cancellationToken);
+            var adminId = GetAdminId();
+            _logger.LogInformation("Admin {AdminId} patching user with UserId: {UserId}", adminId, id);
+
+            GetUserResponseDto user = await _userService.PatchUserAsync(id, request, cancellationToken);
+
+            _logger.LogInformation("Admin {AdminId} patched user successfully with UserId: {UserId}", adminId, user.UserId);
 
             return SuccessResponse(Statuses.UserUpdated, user);
         }
@@ -90,7 +128,12 @@ namespace my_api_app.Controllers
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> DeleteUser(Guid id, CancellationToken cancellationToken)
         {
+            var adminId = GetAdminId();
+            _logger.LogWarning("Admin {AdminId} deleting user with UserId: {UserId}", adminId, id);
+
             await _userService.DeleteUserAsync(id, cancellationToken);
+
+            _logger.LogWarning("Admin {AdminId} deleted user successfully with UserId: {UserId}", adminId, id);
 
             return SuccessResponse(Statuses.UserDeleted);
         }

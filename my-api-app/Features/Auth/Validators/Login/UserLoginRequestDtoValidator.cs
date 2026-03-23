@@ -1,0 +1,18 @@
+﻿using System;
+using FluentValidation;
+using my_api_app.Features.Auth.DTOs.Login;
+
+namespace my_api_app.Features.Auth.Validators.Login
+{
+    public class UserLoginRequestDtoValidator : AbstractValidator<UserLoginRequestDto>
+    {
+        public UserLoginRequestDtoValidator()
+        {
+            RuleFor(x => x.Email).NotEmpty().WithMessage("Email is required")
+                .EmailAddress().WithMessage("Invalid email format");
+
+            RuleFor(x => x.Password).NotEmpty().WithMessage("Password is required");
+        }
+    }
+}
+

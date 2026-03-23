@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using my_api_app.Responses;
+using my_api_app.Core.Responses;
 
 namespace my_api_app.Controllers
 {
