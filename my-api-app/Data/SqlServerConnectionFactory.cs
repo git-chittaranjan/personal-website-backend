@@ -1,4 +1,5 @@
 ﻿using Microsoft.Data.SqlClient;
+using my_api_app.Exceptions.BusinessExceptions;
 
 namespace my_api_app.Data
 {
@@ -13,9 +14,17 @@ namespace my_api_app.Data
 
         public SqlConnection CreateConnection()
         {
-            //return new SqlConnection(_configuration.GetConnectionString("AzureSqlServerConnection"));
+            //var connectionString = _configuration.GetConnectionString("AzureSqlServerConnection");
 
-            return new SqlConnection(_configuration.GetConnectionString("LocalSqlServerConnection"));            
+            var connectionString = _configuration.GetConnectionString("LocalSqlServerConnection");
+
+            if (string.IsNullOrWhiteSpace(connectionString))
+                throw new ConfigurationException(
+                                configKey: "ConnectionStrings:LocalSqlServerConnection",
+                                detail: "Connection string is missing from appsettings."
+                            ); //Middleware will catch and log this.
+
+            return new SqlConnection(connectionString);
         }
     }
 }

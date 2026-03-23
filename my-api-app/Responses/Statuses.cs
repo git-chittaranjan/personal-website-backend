@@ -135,12 +135,18 @@ namespace my_api_app.Responses
 
         //================================ API Key related statuses ================================
         public static readonly ApiStatus ApiKeyMissing =
-            new() { HttpCode = 401, StatusCode = "API_KEY_MISSING", Message = "Unauthorized! API Key is missing." };
+            new() { HttpCode = 401, StatusCode = "API_KEY_MISSING", Message = "Unauthorized! API Key is missing in request header." };
 
         public static readonly ApiStatus ApiKeyInvalid =
             new() { HttpCode = 403, StatusCode = "API_KEY_INVALID", Message = "Forbidden! Invalid API Key." };
 
-        public static readonly ApiStatus ApiKeyNotConfigured =
-            new() { HttpCode = 500, StatusCode = "API_KEY_NOT_CONFIGURED", Message = "Server Error! API Key is not configured on the server." };
+
+
+        //================================ DB related statuses ================================
+        public static readonly ApiStatus DbConnectionFailed =
+            new() { HttpCode = 503, StatusCode = "DB_ERROR", Message = "Service Unavailable! Database related error" };
+
+        public static readonly ApiStatus ConfigurationError =
+            new() { HttpCode = 500, StatusCode = "CONFIGURATION_ERROR", Message = "Configuration Missing! A required configuration is missing or invalid." };
     }
 }

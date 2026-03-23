@@ -1,7 +1,7 @@
 ﻿using FluentValidation;
-using my_api_app.DTOs.Auth;
+using my_api_app.DTOs.Auth.Otp;
 
-namespace my_api_app.Validators.Auth
+namespace my_api_app.Validators.Auth.Otp
 {
     public class VerifyOtpValidator : AbstractValidator<VerifyOtpRequestDto>
     {

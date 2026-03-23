@@ -34,7 +34,6 @@ namespace my_api_app.Filters.Logging
 
             using (LogContext.PushProperty("Controller", controllerName))
             using (LogContext.PushProperty("Action", actionName))
-            using (LogContext.PushProperty("UserId", userId))
             {
                 // --- Log before action exection starts ---
                 using (LogContext.PushProperty("EventType", "ActionExecuting"))

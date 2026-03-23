@@ -13,14 +13,11 @@ using my_api_app.Middlewares.Logging;
 using my_api_app.Repositories.Auth.Implementations;
 using my_api_app.Repositories.Auth.Interfaces;
 using my_api_app.Responses;
-using my_api_app.Responses.Extensions;
 using my_api_app.Services.Auth;
 using my_api_app.Services.Security.Implementations;
 using my_api_app.Services.Security.Interfaces;
 using my_api_app.Services.User;
 using my_api_app.Validators.Auth.Register;
-using Serilog;
-using Serilog.Events;
 using System.Text;
 using System.Text.Json;
 
@@ -192,33 +189,11 @@ Console.WriteLine($"Environment Name: {app.Environment.EnvironmentName}");
 // ------------------------------
 // Middlewares Registration
 // ------------------------------
+app.UseConsoleRequestLogger();
+
 app.UseCorrelationGeneratorIdMiddleware();
 
-app.UseSerilogRequestLogging(opts =>
-{
-    opts.MessageTemplate =
-        "HTTP {RequestMethod} {RequestPath} → {StatusCode} in {Elapsed:0.0000}ms";
-
-    opts.GetLevel = (ctx, elapsed, ex) =>
-    {
-        if (ex != null || ctx.Response.StatusCode >= 500) return LogEventLevel.Error;
-        if (ctx.Response.StatusCode >= 400) return LogEventLevel.Warning;
-        if (elapsed > 2000) return LogEventLevel.Warning;
-        if (ctx.Request.Path.StartsWithSegments("/health")) return LogEventLevel.Verbose;
-        return LogEventLevel.Information;
-    };
-
-    // Only properties NOT already in LogContext from CorrelationIdGenerator
-    opts.EnrichDiagnosticContext = (diag, ctx) =>
-    {
-        diag.Set("ContentLength", ctx.Request.ContentLength);
-        diag.Set("StatusCode", ctx.Response.StatusCode);
-    };
-});
-
 app.UseHttpLogging(); // Built in Middleware to capture req/res logs
-
-app.UseConsoleRequestLogger();
 
 app.UseGlobalExceptionMiddleware();
 
@@ -257,7 +232,7 @@ app.MapGet("/api/chittaranjan", async context =>
 
 
 // ------------------------------
-// Middlewares Registration
+// Bootstrap Logging
 // ------------------------------
 app.Lifetime.ApplicationStarted.Register(() =>
 {

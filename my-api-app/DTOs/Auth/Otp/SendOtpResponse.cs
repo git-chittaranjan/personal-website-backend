@@ -1,4 +1,4 @@
-﻿namespace my_api_app.DTOs.Auth
+﻿namespace my_api_app.DTOs.Auth.Otp
 {
     public class SendOtpResponse
     {

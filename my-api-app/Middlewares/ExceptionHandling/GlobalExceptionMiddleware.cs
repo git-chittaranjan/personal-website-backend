@@ -55,13 +55,19 @@ namespace my_api_app.Middlewares.ExceptionHandling
 
             switch (exception)
             {
-                // 1. FOR BUSINESS EXCEPTIONS OR DOMAIN EXCEPTIONS
+                // 1a. FOR CONFIGURATION (APPSETTINGS.JSON) EXCEPTIONS OR DOMAIN EXCEPTIONS
+                case ConfigurationException ce:  // checked first, catches only ConfigurationException
+                    status = ce.Status;
+                    errorObject = _env.IsProduction() ? null : ce.Errors;
+                    break;
+
+                // 1b. FOR BUSINESS EXCEPTIONS OR DOMAIN EXCEPTIONS
                 case BusinessException be:
                     status = be.Status; //Accesses Status property defined in the BusinessException class and assigns variable status.
                     errorObject = be.Errors;
                     break;
 
-                // 2. FOR FLUENT VALIDATION EXCEPTIONS - Not getting called, so added ModelValidationResponseExtension.cs clss
+                // 2. FOR FLUENT VALIDATION EXCEPTIONS - Never Executing, instead ModelValidationResponseExtension.cs is executing
                 case FluentValidation.ValidationException ve:
                     status = Statuses.ValidationFailed;
                     errorObject = ve.Errors
@@ -93,18 +99,16 @@ namespace my_api_app.Middlewares.ExceptionHandling
 
             // Structured error log — ALWAYS log stack trace in production for 5xx
             using (LogContext.PushProperty("EventType", "UnhandledException"))
-            using (LogContext.PushProperty("ErrorCode", status.StatusCode))
-            using (LogContext.PushProperty("UserId", userId))
             using (LogContext.PushProperty("ExceptionType", exception.GetType().Name))
             {
                 if (status.HttpCode >= 500)
                     _logger.LogError(exception,
-                        "Unhandled exception | ErrorCode:{ErrorCode} | Path:{Path} | User:{UserId}",
-                        status.StatusCode, context.Request.Path, userId);
+                        "Unhandled exception | ErrorCode:{ErrorCode} | ErrorMessage:{ErrorMessage} | Path:{Path} | User:{UserId}",
+                        status.StatusCode, status.Message, context.Request.Path, userId);
                 else //This will only capture 4XX because 2XX & 3XX are Success so they will never hit this Middleware
                     _logger.LogWarning(
-                        "Client error | ErrorCode:{ErrorCode} | Path:{Path} | User:{UserId}",
-                        status.StatusCode, context.Request.Path, userId);
+                        "Client error | ErrorCode:{ErrorCode} | ErrorMessage:{ErrorMessage} | Path:{Path} | User:{UserId}",
+                        status.StatusCode, status.Message, context.Request.Path, userId);
             }
 
             context.Response.StatusCode = status.HttpCode;

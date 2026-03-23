@@ -10,7 +10,7 @@ namespace my_api_app.Extensions
             {
                 config
                     .ReadFrom.Configuration(ctx.Configuration)   // Reads Serilog config block from appsettings.json
-                    .ReadFrom.Services(services);                // Adds DI like sinks (Azure AppInsights, MS SQL Server etc.)
+                    .ReadFrom.Services(services);                // Adds DI like sinks (Azure AppInsights, MS SQL Server etc.) which are registered in Program.cs
             });
 
             return host;

@@ -1,8 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using my_api_app.Exceptions.BusinessExceptions;
+using my_api_app.Models.Auth;
 using my_api_app.Responses;
+using Serilog.Core;
 using System.Security.Cryptography;
 using System.Text;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace my_api_app.Filters.Authorization
 {
@@ -23,10 +27,11 @@ namespace my_api_app.Filters.Authorization
         {
             // Check if API key header exists
             var requestApiKey = context.HttpContext.Request.Headers["x-api-key"].FirstOrDefault();
+            var userId = context.HttpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anonymous";
 
             if (string.IsNullOrWhiteSpace(requestApiKey))
             {
-                _logger.LogWarning("x-api-key header missing | Path:{Path}", context.HttpContext.Request.Path);
+                _logger.LogWarning("x-api-key request header missing | Path:{Path} | User:{UserId}", context.HttpContext.Request.Path, userId);
 
                 context.Result = new ObjectResult(_responseFactory.Failure(Statuses.ApiKeyMissing))
                 {
@@ -40,13 +45,10 @@ namespace my_api_app.Filters.Authorization
 
             if (string.IsNullOrWhiteSpace(validApiKey))
             {
-                _logger.LogCritical("API key not configured in Security:ApiKey");
-
-                context.Result = new ObjectResult(_responseFactory.Failure(Statuses.ApiKeyNotConfigured))
-                {
-                    StatusCode = Statuses.ApiKeyNotConfigured.HttpCode
-                };
-                return;
+                throw new ConfigurationException(
+                       configKey: "Security:ApiKey",
+                       detail: "is missing from appsettings."
+                ); //Middleware will catch and log this.
             }
 
             // Timing-safe comparison
@@ -58,7 +60,7 @@ namespace my_api_app.Filters.Authorization
 
             if (!isValid)
             {
-                _logger.LogWarning("Invalid API key attempt | Path:{Path} | IP:{Ip}", context.HttpContext.Request.Path, context.HttpContext.Connection.RemoteIpAddress);
+                _logger.LogWarning("Invalid API key attempt | Path:{Path} | IP:{Ip} | User:{UserId}", context.HttpContext.Request.Path, context.HttpContext.Connection.RemoteIpAddress, userId);
 
                 context.Result = new ObjectResult(_responseFactory.Failure(Statuses.ApiKeyInvalid))
                 {
