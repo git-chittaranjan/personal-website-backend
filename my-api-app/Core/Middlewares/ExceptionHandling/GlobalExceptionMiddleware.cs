@@ -51,19 +51,33 @@ namespace my_api_app.Core.Middlewares.ExceptionHandling
 
             ApiStatus status;
             object? errorObject = null;
+            var prodError = new[] {
+                new
+                {
+                    code = "INTERNAL_ERROR",
+                    message = "An unexpected error occurred. Please contact support with the trace_id."
+                }
+            };
+            var businessError = new[] {
+                new
+                {
+                    code = "BUSINESS_ERROR",
+                    message = "The request could not be processed due to business rules."
+                }
+            };
 
             switch (exception)
             {
                 // 1a. FOR CONFIGURATION (APPSETTINGS.JSON) EXCEPTIONS OR DOMAIN EXCEPTIONS
                 case ConfigurationException ce:  // checked first, catches only ConfigurationException
                     status = ce.Status;
-                    errorObject = _env.IsProduction() ? null : ce.Errors;
+                    errorObject = _env.IsProduction() ? prodError : ce.Errors;
                     break;
 
                 // 1b. FOR BUSINESS EXCEPTIONS OR DOMAIN EXCEPTIONS
                 case BusinessException be:
                     status = be.Status; //Accesses Status property defined in the BusinessException class and assigns variable status.
-                    errorObject = be.Errors;
+                    errorObject = _env.IsProduction() ? businessError : be.Errors;
                     break;
 
                 // 2. FOR FLUENT VALIDATION EXCEPTIONS - Never Executing, instead ModelValidationResponseExtension.cs is executing
@@ -80,19 +94,19 @@ namespace my_api_app.Core.Middlewares.ExceptionHandling
                 // 3a. PROGRAMMING ERRORS — is of Internal Server Error type
                 case ArgumentNullException ane:
                     status = Statuses.InternalServerError;
-                    errorObject = _env.IsProduction() ? null : new { detail = ane.Message, parameter = ane.ParamName };
+                    errorObject = _env.IsProduction() ? prodError : new { detail = ane.Message, parameter = ane.ParamName };
                     break;
 
                 // 3b. ARGUMENT/INVALID OPERATION
                 case ArgumentException ae:
                     status = Statuses.BadRequest;
-                    errorObject = _env.IsProduction() ? null : new { detail = ae.Message, parameter = ae.ParamName };
+                    errorObject = _env.IsProduction() ? businessError : new { detail = ae.Message, parameter = ae.ParamName };
                     break;
 
                 // 4. FALLBACK: ANY OTHER SYSTEM/UNHANDLED EXCEPTION
                 default:
                     status = Statuses.InternalServerError;
-                    errorObject = _env.IsProduction() ? null : new { detail = exception.Message, stack_trace = exception.StackTrace, type = exception.GetType().Name };
+                    errorObject = _env.IsProduction() ? prodError : new { detail = exception.Message, stack_trace = exception.StackTrace, type = exception.GetType().Name };
                     break;
             }
 

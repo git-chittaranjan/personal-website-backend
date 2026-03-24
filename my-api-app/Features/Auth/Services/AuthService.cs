@@ -23,8 +23,9 @@ namespace my_api_app.Features.Auth.Services
         private readonly IOtpService _otpService;
         private readonly IJwtTokenService _tokenService;
         private readonly IPasswordResetService _passwordResetService;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(IUserRepository userRepo, IPendingUserRepository pendingUserRepository, IPasswordHasher hasher, IOtpService otpService, IJwtTokenService tokenService, IPasswordResetService passwordResetService)
+        public AuthService(IUserRepository userRepo, IPendingUserRepository pendingUserRepository, IPasswordHasher hasher, IOtpService otpService, IJwtTokenService tokenService, IPasswordResetService passwordResetService, ILogger<AuthService> logger)
         {
             _userRepo = userRepo;
             _pendingUserRepo = pendingUserRepository;
@@ -32,6 +33,7 @@ namespace my_api_app.Features.Auth.Services
             _otpService = otpService;
             _tokenService = tokenService;
             _passwordResetService = passwordResetService;
+            _logger = logger;
         }
 
 
@@ -41,11 +43,20 @@ namespace my_api_app.Features.Auth.Services
         // ------------------------------
         public async Task RegisterUserAsync(UserRegisterRequestDto dto, CancellationToken cancellationToken)
         {
+            if (dto is null)
+                throw new ArgumentNullException(nameof(dto));
+
+            _logger.LogInformation("RegisterUserAsync - Registration attempt for email: {Email}", dto.Email);
+
             bool emailExists = await _userRepo.EmailExistsAsync(dto.Email, cancellationToken);
 
             if (emailExists)
+            {
+                _logger.LogWarning("RegisterUserAsync - Registration rejected — email already exists: {Email}", dto.Email);
                 throw new UserAlreadyExistsException();
+            }
 
+            _logger.LogInformation("RegisterUserAsync - Pending user created for email: {Email}. Sending OTP.", dto.Email);
 
             var (hash, salt) = _hasher.HashPassword(dto.Password);
 
@@ -61,15 +72,22 @@ namespace my_api_app.Features.Auth.Services
 
             await _pendingUserRepo.CreatePendingUserAsync(pendingUser, cancellationToken);
 
+            _logger.LogInformation("RegisterUserAsync - Pending user created for email: {Email}. Sending OTP.", dto.Email);
+
             try
             {
                 await _otpService.GenerateAndSendOtpAsync(dto.Name, dto.Email, OtpPurpose.EMAIL_VERIFICATION, cancellationToken);
             }
+
             catch (OtpDeliveryFailedException)
             {
+                _logger.LogError("RegisterUserAsync - OTP delivery failed during registration for email: {Email}. Rolling back pending user.", dto.Email);
+
                 await _pendingUserRepo.DeletePendingUserAsync(dto.Email, cancellationToken);
                 throw; // Because email delivery is an external call that can fail independently and deserves its own meaningful error code rather than a generic 500
             }
+
+            _logger.LogInformation("RegisterUserAsync - Registration OTP sent successfully for email: {Email}", dto.Email);
         }
 
 
@@ -79,15 +97,26 @@ namespace my_api_app.Features.Auth.Services
         // ------------------------------
         public async Task LoginUserAsync(UserLoginRequestDto dto, CancellationToken cancellationToken)
         {
+            if (dto is null)
+                throw new ArgumentNullException(nameof(dto));
+
+            _logger.LogInformation("LoginUserAsync - Login attempt for email: {Email}", dto.Email);
+
             var user = await _userRepo.GetUserByEmailAsync(dto.Email, cancellationToken);
 
             if (user == null)
+            {
+                _logger.LogWarning("LoginUserAsync - Login failed — email not found: {Email}", dto.Email);
                 throw new InvalidCredentialsException();
+            }
 
             var passwordFlag = _hasher.VerifyPassword(dto.Password, user.PasswordHash, user.PasswordSalt);
 
             if (!passwordFlag)
+            {
+                _logger.LogWarning("LoginUserAsync - Login failed — invalid password for email: {Email}", dto.Email);
                 throw new InvalidCredentialsException();
+            }
 
             try
             {
@@ -97,6 +126,8 @@ namespace my_api_app.Features.Auth.Services
             {
                 throw;
             }
+
+            _logger.LogInformation("LoginUserAsync - Login OTP sent successfully for email: {Email}", dto.Email);
         }
 
 
@@ -107,9 +138,12 @@ namespace my_api_app.Features.Auth.Services
         // ------------------------------
         public async Task<OtpFlowResult> VerifyOtpAsync(VerifyOtpRequestDto dto, CancellationToken cancellationToken)
         {
+            if (dto is null)
+                throw new ArgumentNullException(nameof(dto));
+
             Guid otpId = await _otpService.ValidateOtpAsync(dto.Email, dto.OtpCode, dto.OtpPurpose, cancellationToken);
 
-            if(otpId == Guid.Empty)
+            if (otpId == Guid.Empty)
                 throw new InvalidOtpException();
 
             return dto.OtpPurpose switch
@@ -143,20 +177,32 @@ namespace my_api_app.Features.Auth.Services
         // ------------------------------
         private async Task<object> CompleteRegistrationAsync(string email, CancellationToken cancellationToken)
         {
+            _logger.LogInformation("CompleteRegistrationAsync - Completing registration for email: {Email}", email);
+
             bool emailExists = await _userRepo.EmailExistsAsync(email, cancellationToken);
 
             // Handling Race Condition resulted in the email already existing
             if (emailExists)
+            {
+                _logger.LogWarning("CompleteRegistrationAsync - Registration race condition detected — email already registered: {Email}", email);
+
                 throw new UserAlreadyExistsException();
+            }
 
             var pendingUser = await _pendingUserRepo.GetPendingUserAsync(email, cancellationToken);
 
             if (pendingUser == null)
+            {
+                _logger.LogError("CompleteRegistrationAsync - Pending user not found during registration completion for email: {Email}", email);
+
                 throw new PendingUserNotFoundException();
+            }
 
             CreatedUserResult result = await _userRepo.CreateUserAsync(pendingUser.Name, pendingUser.Email, pendingUser.Gender, pendingUser.PasswordHash, pendingUser.PasswordSalt, cancellationToken);
 
             await _pendingUserRepo.DeletePendingUserAsync(email, cancellationToken);
+
+            _logger.LogInformation("CompleteRegistrationAsync - User registered successfully. UserId: {UserId}, Email: {Email}", result.UserID, email);
 
             return new UserRegisterResponseDto
             {
@@ -174,15 +220,27 @@ namespace my_api_app.Features.Auth.Services
         // ------------------------------
         private async Task<object> CompleteLoginAsync(string email, CancellationToken cancellationToken)
         {
+            _logger.LogInformation("CompleteLoginAsync - Completing login for email: {Email}", email);
+
             var user = await _userRepo.GetUserByEmailAsync(email, cancellationToken);
 
             if (user is null)
+            {
+                // User existed at credential-check time but is missing now — treat as internal fault.
+                _logger.LogError("CompleteLoginAsync - User not found during login completion despite passing credential check. Email: {Email}", email);
+
                 throw new InternalServerException();
+            }
 
             UserLoginResponseDto? loginResponse = _tokenService.GenerateAccessToken(user, JwtTokenPurpose.LOGIN);
 
             if (loginResponse is null)
+            {
+                _logger.LogError("CompleteLoginAsync -  JWT token generation returned null for email: {Email}", email);
                 throw new TokenGenerationFailedException();
+            }
+
+            _logger.LogInformation("CompleteLoginAsync - Login successful. UserId: {UserId}, Email: {Email}, TokenExpiry: {ExpiresAt}", loginResponse.UserId, email, loginResponse.ExpiresAt);
 
             return new UserLoginResponseDto
             {

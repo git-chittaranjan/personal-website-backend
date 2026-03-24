@@ -20,8 +20,9 @@ namespace my_api_app.Features.Auth.Services
         private readonly IResetTokenHasher _tokenHasher;
         private readonly IConfiguration _config;
         private readonly IOtpService _otpService;
+        private readonly ILogger<PasswordResetService> _logger;
 
-        public PasswordResetService(IUserRepository userRepo, IPasswordResetTokenRepository tokenRepo, IPasswordHasher hasher, IResetTokenHasher tokenHasher, IConfiguration config, IOtpService otpService)
+        public PasswordResetService(IUserRepository userRepo, IPasswordResetTokenRepository tokenRepo, IPasswordHasher hasher, IResetTokenHasher tokenHasher, IConfiguration config, IOtpService otpService, ILogger<PasswordResetService> logger)
         {
             _userRepo = userRepo;
             _tokenRepo = tokenRepo;
@@ -29,6 +30,7 @@ namespace my_api_app.Features.Auth.Services
             _tokenHasher = tokenHasher;
             _config = config;
             _otpService = otpService;
+            _logger = logger;
         }
 
 
@@ -38,20 +40,43 @@ namespace my_api_app.Features.Auth.Services
         // ------------------------------
         public async Task ForgotPasswordAsync(string email, CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(email))
+                throw new ArgumentException("Email must not be empty.", nameof(email));
+
+            _logger.LogInformation("ForgotPasswordAsync - Password reset requested for email: {Email}", email);
+
             var user = await _userRepo.GetUserByEmailAsync(email, cancellationToken);
 
             if (user == null)
+            {
+                _logger.LogWarning("ForgotPasswordAsync - Password reset requested for unknown email: {Email}", email);
+
                 return;
+            }
 
             await _otpService.GenerateAndSendOtpAsync(user.Name, user.Email, OtpPurpose.PASSWORD_RESET, cancellationToken);
+
+            _logger.LogInformation("ForgotPasswordAsync - OTP sent for password reset to email: {Email}", email);
         }
+
 
 
         public async Task<ForgotPasswordResponseDto> GenerateResetTokenAsync(string email, CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(email))
+                throw new ArgumentException("GenerateResetTokenAsync - Email must not be empty.", nameof(email));
+
+            _logger.LogInformation("GenerateResetTokenAsync - Generating reset token for email: {Email}", email);
+
             var user = await _userRepo.GetUserByEmailAsync(email, cancellationToken);
+
             if (user == null)
+            {
+                // Reaching this point means OTP was verified for a non-existent user — treat as an internal fault rather than a token/auth error.
+                _logger.LogError("GenerateResetTokenAsync - Reset token generation failed: user not found after OTP verification for email: {Email}", email);
+
                 throw new InternalServerException();
+            }
 
             var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
             int expiryMinutes = int.Parse(_config["ResetToken:ExpiryMinutes"] ?? "10");
@@ -67,6 +92,8 @@ namespace my_api_app.Features.Auth.Services
 
             await _tokenRepo.CreateResetTokenAsync(tokenEntity, cancellationToken);
 
+            _logger.LogInformation("GenerateResetTokenAsync - Reset token issued for email: {Email}, expires at: {ExpiresAt}", email, tokenEntity.ExpiresAt);
+
             var forgotPasswordResponse = new ForgotPasswordResponseDto
             {
                 ResetToken = rawToken, //Sending raw token in the response
@@ -81,22 +108,43 @@ namespace my_api_app.Features.Auth.Services
 
         public async Task ResetPasswordAsync(string email, string token, string newPassword, CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(email))
+                throw new ArgumentException("ResetPasswordAsync - Email must not be empty.", nameof(email));
+
+            if (string.IsNullOrWhiteSpace(token))
+                throw new ArgumentException("ResetPasswordAsync - Token must not be empty.", nameof(token));
+
+            if (string.IsNullOrWhiteSpace(newPassword))
+                throw new ArgumentException("ResetPasswordAsync - New password must not be empty.", nameof(newPassword));
+
+            _logger.LogInformation("ResetPasswordAsync - Password reset attempt for email: {Email}", email);
+
             var tokenHash = _tokenHasher.Hash(token);
 
             var passwordResetToken = await _tokenRepo.GetResetTokenAsync(tokenHash, cancellationToken);
 
             // Token not found, already used, or expired
             if (passwordResetToken == null)
-                throw new InvalidPasswordResetTokenException();
+            {
+                _logger.LogWarning("ResetPasswordAsync - Invalid or expired reset token used for email: {Email}", email);
 
-            // Token does not belong to this email — possible tampering
-            if (passwordResetToken.Email != email)
                 throw new InvalidPasswordResetTokenException();
+            }
+
+            // Token exists but belongs to a different email — likely a tampering attempt.
+            if (!string.Equals(passwordResetToken.Email, email, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("ResetPasswordAsync - Reset token email mismatch. Token owner: {TokenEmail}, Requester: {RequestEmail}. Possible tampering.", passwordResetToken.Email, email);
+
+                throw new InvalidPasswordResetTokenException();
+            }
 
             var (hash, salt) = _hasher.HashPassword(newPassword);
 
             await _userRepo.UpdatePasswordAsync(passwordResetToken.Email, hash, salt, cancellationToken);
             await _tokenRepo.MarkAsUsedResetTokenAsync(passwordResetToken.TokenID, cancellationToken);
+
+            _logger.LogInformation("ResetPasswordAsync - Password successfully reset for email: {Email}", email);
         }
     }
 }

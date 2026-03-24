@@ -27,6 +27,8 @@ namespace my_api_app.Infrastructure.Security.Hasher
             return (derived, salt);
         }
 
+
+
         public bool VerifyPassword(string password, byte[] storedHash, byte[] storedSalt)
         {
             if (string.IsNullOrEmpty(password))

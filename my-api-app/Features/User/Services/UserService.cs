@@ -38,13 +38,13 @@ namespace my_api_app.Features.User.Services
         //CancellationToken cancellationToken = default provides the default value for the CancellationToken struct, which is equivalent to CancellationToken.None, that signals no cancellation is requested.
         public async Task<CreateUserResponseDto> CreateUserAsync(CreateUserRequestDto request, CancellationToken cancellationToken = default)
         {
-            _logger.LogInformation("Checking if email already exists: {Email}", request.Email);
+            _logger.LogInformation("CreateUserAsync - Checking if email already exists: {Email}", request.Email);
 
             bool emailExists = await _userRepository.EmailExistsAsync(request.Email, cancellationToken);
 
             if (emailExists)
             {
-                _logger.LogWarning("User creation failed — email already exists: {Email}", request.Email);
+                _logger.LogWarning("CreateUserAsync - User creation failed — email already exists: {Email}", request.Email);
 
                 throw new UserAlreadyExistsException();
             }
@@ -57,13 +57,12 @@ namespace my_api_app.Features.User.Services
                 Gender = request.Gender,
                 Email = request.Email,
                 PasswordHash = hash,
-                PasswordSalt = salt,
-                IsEmailVerified = true
+                PasswordSalt = salt
             };
 
             CreatedUserResult result = await _userRepository.CreateUserAsync(user.Name, user.Email, user.Gender, user.PasswordHash, user.PasswordSalt, cancellationToken);
 
-            _logger.LogInformation("User created successfully — UserId: {UserId}, Email: {Email}", result.UserID, request.Email);
+            _logger.LogInformation("CreateUserAsync - User created successfully — UserId: {UserId}, Email: {Email}", result.UserID, request.Email);
 
             return new CreateUserResponseDto
             {
@@ -80,7 +79,7 @@ namespace my_api_app.Features.User.Services
         // ------------------------------
         public async Task<GetUserResponseDto> GetUserByIdAsync(Guid userId, CancellationToken cancellationToken = default)
         {
-            _logger.LogInformation("Fetching user by UserId: {UserId}", userId);
+            _logger.LogInformation("GetUserByIdAsync - Fetching user by UserId: {UserId}", userId);
 
             UserDetails user = await _userRepository.GetUserByIdAsync(userId, cancellationToken)
                        ?? throw new UserNotFoundException();
@@ -110,11 +109,11 @@ namespace my_api_app.Features.User.Services
             if (pageSize < 1) pageSize = 20;
             if (pageSize > 100) pageSize = 100;
 
-            _logger.LogInformation("Fetching all users — Page: {PageNumber}, Size: {PageSize}", pageNumber, pageSize);
+            _logger.LogInformation("GetAllUsersAsync - Fetching all users — Page: {PageNumber}, Size: {PageSize}", pageNumber, pageSize);
 
             var (items, totalCount) = await _userRepository.GetAllUsersAsync(pageNumber, pageSize, cancellationToken);
 
-            _logger.LogInformation("Fetched {Count} users out of {TotalCount}", items.Count(), totalCount);
+            _logger.LogInformation("GetAllUsersAsync - Fetched {Count} users out of {TotalCount}", items.Count(), totalCount);
 
             var users = items.Select(MapToResponse).ToList();
 
@@ -135,7 +134,7 @@ namespace my_api_app.Features.User.Services
         // ------------------------------
         public async Task<GetUserResponseDto> UpdateUserAsync(Guid id, UpdateUserRequestDto request, CancellationToken cancellationToken = default)
         {
-            _logger.LogInformation("Fetching user for update — UserId: {UserId}", id);
+            _logger.LogInformation("UpdateUserAsync - Fetching user for update — UserId: {UserId}", id);
 
             var userDetails = await _userRepository.GetUserByIdAsync(id, cancellationToken)
                        ?? throw new UserNotFoundException();
@@ -143,14 +142,14 @@ namespace my_api_app.Features.User.Services
             userDetails.Name = request.Name;
             userDetails.Gender = request.Gender;
 
-            _logger.LogInformation("Updating user — UserId: {UserId}", id);
+            _logger.LogInformation("UpdateUserAsync - Updating user — UserId: {UserId}", id);
 
             var updatedUser = await _userRepository.UpdateUserAsync(userDetails, cancellationToken);
 
-            _logger.LogInformation("User updated successfully — UserId: {UserId}", id);
-
             if (updatedUser == null)
                 throw new UserNotFoundException();
+
+            _logger.LogInformation("UpdateUserAsync - User updated successfully — UserId: {UserId}", id);
 
             return MapToResponse(updatedUser);
         }
@@ -172,14 +171,14 @@ namespace my_api_app.Features.User.Services
             if (!string.IsNullOrWhiteSpace(request.Gender.ToString()))
                 userDetails.Gender = request.Gender;
 
-            _logger.LogInformation("Patching user — UserId: {UserId}", id);
+            _logger.LogInformation("PatchUserAsync - Patching user — UserId: {UserId}", id);
 
             var patched = await _userRepository.PatchUserAsync(id, userDetails, cancellationToken);
 
             if (patched is null)
                 throw new UserNotFoundException();
 
-            _logger.LogInformation("User patched successfully — UserId: {UserId}", id);
+            _logger.LogInformation("PatchUserAsync - User patched successfully — UserId: {UserId}", id);
 
             return MapToResponse(patched);
         }
@@ -194,17 +193,19 @@ namespace my_api_app.Features.User.Services
             if (userId == Guid.Empty)
                 throw new InvalidUserIdException();
 
-            _logger.LogInformation("Fetching user for deletion — UserId: {UserId}", userId);
+            _logger.LogInformation("DeleteUserAsync - Fetching user for deletion — UserId: {UserId}", userId);
 
             UserDetails user = await _userRepository.GetUserByIdAsync(userId, cancellationToken)
                      ?? throw new UserNotFoundException();
+
+            _logger.LogWarning("DeleteUserAsync - Deleting user — UserId: {UserId}", userId);
 
             var deleted = await _userRepository.DeleteUserAsync(userId, cancellationToken);
 
             if (!deleted)
                 throw new UserDeletionFailedException();
 
-            _logger.LogWarning("User deleted successfully — UserId: {UserId}", userId);
+            _logger.LogWarning("DeleteUserAsync - User deleted successfully — UserId: {UserId}", userId);
         }
 
 

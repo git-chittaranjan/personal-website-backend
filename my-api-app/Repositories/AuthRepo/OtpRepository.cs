@@ -22,10 +22,10 @@ namespace my_api_app.Repositories.Auth
             using SqlConnection con = _factory.CreateConnection();
             using SqlCommand cmd = new SqlCommand(sql, con);
 
-            cmd.Parameters.AddWithValue("@Email", email);
-            cmd.Parameters.AddWithValue("@OtpCode", otp);
-            cmd.Parameters.AddWithValue("@ExpiresAt", expiresAt);
-            cmd.Parameters.AddWithValue("@Purpose", purpose.ToString());
+            cmd.Parameters.Add("@Email", SqlDbType.VarChar, 200).Value = email;
+            cmd.Parameters.Add("@OtpCode", SqlDbType.VarChar, 200).Value = otp;
+            cmd.Parameters.Add("@ExpiresAt", SqlDbType.DateTime2).Value = expiresAt; // ← DateTime2 for precision
+            cmd.Parameters.Add("@Purpose", SqlDbType.VarChar, 200).Value = purpose.ToString();
 
             await con.OpenAsync(cancellationToken);
             var rows = await cmd.ExecuteNonQueryAsync(cancellationToken);
@@ -37,24 +37,26 @@ namespace my_api_app.Repositories.Auth
 
         public async Task<OtpEntry?> GetLatestOtpAsync(string email, OtpPurpose purpose, CancellationToken cancellationToken)
         {
-            const string sql = @"SELECT TOP 1 OtpID, OtpCode, IsUsed, ExpiresAt FROM OtpEntries WITH (UPDLOCK, ROWLOCK) WHERE Email = @Email AND OtpPurpose = @OtpPurpose ORDER BY CreatedAt DESC;";
+            const string sql = @"SELECT TOP 1 OtpID, OtpCode, ExpiresAt, IsUsed, CreatedAt, OtpPurpose FROM OtpEntries WITH (ROWLOCK) WHERE Email = @Email AND OtpPurpose = @OtpPurpose ORDER BY CreatedAt DESC;";
 
             using SqlConnection con = _factory.CreateConnection();
             await con.OpenAsync(cancellationToken);
 
             using var cmd = new SqlCommand(sql, con);
-            cmd.Parameters.AddWithValue("@Email", email);
-            cmd.Parameters.AddWithValue("@OtpPurpose", purpose.ToString());
+            cmd.Parameters.Add("@Email", SqlDbType.VarChar, 256).Value = email;
+            cmd.Parameters.Add("@OtpPurpose", SqlDbType.VarChar, 50).Value = purpose.ToString();
 
             using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
             if (await reader.ReadAsync(cancellationToken))
             {
                 return new OtpEntry
                 {
-                    OtpID = reader.GetGuid(0),
-                    OtpCode = reader.GetString(1),
-                    IsUsed = reader.GetBoolean(2),
-                    ExpiresAt = reader.GetDateTime(3)
+                    OtpID = reader.GetGuid(reader.GetOrdinal("OtpID")),
+                    OtpCode = reader.GetString(reader.GetOrdinal("OtpCode")),
+                    ExpiresAt = reader.GetDateTime(reader.GetOrdinal("ExpiresAt")),
+                    IsUsed = reader.GetBoolean(reader.GetOrdinal("IsUsed")),                    
+                    CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                    OtpPurpose = Enum.Parse<OtpPurpose>(reader.GetString(reader.GetOrdinal("OtpPurpose")))
                 };
             }
 
@@ -70,7 +72,7 @@ namespace my_api_app.Repositories.Auth
             using SqlConnection con = _factory.CreateConnection();
             using var cmd = new SqlCommand(sql, con);
 
-            cmd.Parameters.AddWithValue("@OtpID", otpId);
+            cmd.Parameters.Add("@OtpID", SqlDbType.UniqueIdentifier).Value = otpId;
 
             await con.OpenAsync(cancellationToken);
             var rows = await cmd.ExecuteNonQueryAsync(cancellationToken);

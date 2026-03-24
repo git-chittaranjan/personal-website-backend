@@ -11,7 +11,7 @@ namespace my_api_app.Domain.Models
         public byte[] PasswordHash { get; set; } = default!;
         public byte[] PasswordSalt { get; set; } = default!;
         public bool IsEmailVerified { get; set; } = false;
-        public bool IsActice { get; set; } = true;
+        public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

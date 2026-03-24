@@ -18,6 +18,9 @@ namespace my_api_app.Repositories.Auth
 
         public async Task<bool> CreateResetTokenAsync(PasswordResetToken token, CancellationToken cancellationToken)
         {
+            if (token is null)
+                throw new ArgumentNullException(nameof(token));
+
             const string sql = "INSERT INTO PasswordResetTokens (Email, TokenHash, ExpiresAt, IsUsed) VALUES (@Email, @TokenHash, @ExpiresAt, 0);";
 
             using SqlConnection con = _factory.CreateConnection();
@@ -37,6 +40,9 @@ namespace my_api_app.Repositories.Auth
 
         public async Task<PasswordResetToken?> GetResetTokenAsync(byte[] tokenHash, CancellationToken cancellationToken)
         {
+            if (tokenHash is null || tokenHash.Length == 0)
+                throw new ArgumentException("Token hash must not be null or empty.", nameof(tokenHash));
+
             const string sql = "SELECT TokenID, Email, ExpiresAt, IsUsed FROM PasswordResetTokens WHERE TokenHash = @TokenHash AND IsUsed = 0 AND ExpiresAt > SYSUTCDATETIME();";
 
             using SqlConnection con = _factory.CreateConnection();
@@ -63,10 +69,13 @@ namespace my_api_app.Repositories.Auth
 
         public async Task<bool> MarkAsUsedResetTokenAsync(Guid tokenId, CancellationToken cancellationToken)
         {
+            if (tokenId == Guid.Empty)
+                throw new ArgumentException("TokenId must not be empty.", nameof(tokenId));
+
             const string sql = "UPDATE PasswordResetTokens SET IsUsed = 1 WHERE TokenID = @TokenID;";
 
             using var con = _factory.CreateConnection();
-            using var cmd = new SqlCommand(sql , con);
+            using var cmd = new SqlCommand(sql, con);
 
             cmd.Parameters.Add("@TokenID", SqlDbType.UniqueIdentifier).Value = tokenId;
 

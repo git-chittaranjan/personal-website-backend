@@ -21,12 +21,12 @@ namespace my_api_app.Repositories.UserRepo
 
         public async Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken)
         {
-            const string sql = "SELECT COUNT(1) FROM Users WHERE LOWER(Email)=LOWER(@Email);";
+            const string sql = "SELECT COUNT(1) FROM Users WITH (NOLOCK) WHERE LOWER(Email)=LOWER(@Email);";
 
             using SqlConnection con = _factory.CreateConnection();
             using SqlCommand cmd = new SqlCommand(sql, con);
 
-            cmd.Parameters.AddWithValue("@Email", email);
+            cmd.Parameters.Add("@Email", SqlDbType.VarChar, 200).Value = email;
 
             await con.OpenAsync(cancellationToken);
             int count = Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken));
@@ -39,29 +39,31 @@ namespace my_api_app.Repositories.UserRepo
         public async Task<CreatedUserResult> CreateUserAsync(string name, string email, Gender? gender, byte[] hash, byte[] salt, CancellationToken cancellationToken)
         {
             const string sql = @"
-                INSERT INTO Users (Name, Email, Gender, PasswordHash, PasswordSalt, IsEmailVerified)
+                INSERT INTO Users (Name, Email, Gender, PasswordHash, PasswordSalt, IsEmailVerified, IsActive)
                 OUTPUT INSERTED.UserId, INSERTED.CreatedAt
-                VALUES (@Name, @Email, @Gender, @Hash, @Salt, 1);";
+                VALUES (@Name, @Email, @Gender, @Hash, @Salt, 1, 1);";
 
             using SqlConnection con = _factory.CreateConnection();
             using SqlCommand cmd = new SqlCommand(sql, con);
 
-            cmd.Parameters.AddWithValue("@Name", name);
-            cmd.Parameters.AddWithValue("@Email", email);
-            cmd.Parameters.AddWithValue("@Gender", gender.HasValue ? gender.Value.ToString() : (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@Hash", hash);
-            cmd.Parameters.AddWithValue("@Salt", salt);
+            cmd.Parameters.Add("@Name", SqlDbType.VarChar, 200).Value = name;
+            cmd.Parameters.Add("@Email", SqlDbType.VarChar, 200).Value = email;
+            cmd.Parameters.Add("@Gender", SqlDbType.VarChar, 200).Value = gender.HasValue ? gender.Value.ToString() : (object)DBNull.Value;
+            cmd.Parameters.Add("@Hash", SqlDbType.VarBinary, -1).Value = hash;
+            cmd.Parameters.Add("@Salt", SqlDbType.VarBinary, -1).Value = salt;
 
             await con.OpenAsync(cancellationToken);
             using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
             if (!await reader.ReadAsync(cancellationToken))
+            {
                 throw new InternalServerException(); // INSERT succeeded but returned no row
+            }
 
             return new CreatedUserResult
             {
-                UserID = reader.GetGuid(0),
-                CreatedAt = reader.GetDateTime(1)
+                UserID = reader.GetGuid(reader.GetOrdinal("UserID")),
+                CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"))
             };
         }
 
@@ -69,12 +71,12 @@ namespace my_api_app.Repositories.UserRepo
 
         public async Task<Domain.Models.User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken)
         {
-            const string sql = "SELECT UserID, Name, Email, PasswordHash, PasswordSalt FROM Users WHERE LOWER(Email)=LOWER(@Email) AND IsEmailVerified = 1 AND IsActive = 1;";
+            const string sql = "SELECT UserID, Name, Gender, Email, PasswordHash, PasswordSalt, IsEmailVerified, IsActive, CreatedAt, UpdatedAt FROM Users WHERE LOWER(Email)=LOWER(@Email);";
 
             using SqlConnection con = _factory.CreateConnection();
             using SqlCommand cmd = new SqlCommand(sql, con);
 
-            cmd.Parameters.AddWithValue("@Email", email);
+            cmd.Parameters.Add("@Email", SqlDbType.VarChar, 200).Value = email;
 
             await con.OpenAsync(cancellationToken);
             using SqlDataReader reader = await cmd.ExecuteReaderAsync(cancellationToken);
@@ -84,11 +86,16 @@ namespace my_api_app.Repositories.UserRepo
 
             return new Domain.Models.User
             {
-                UserID = reader.GetGuid(0),
-                Name = reader.GetString(1),
-                Email = reader.GetString(2),
+                UserID = reader.GetGuid(reader.GetOrdinal("UserID")),         // named ordinals
+                Name = reader.GetString(reader.GetOrdinal("Name")),
+                Gender = ParseGender(reader),
+                Email = reader.GetString(reader.GetOrdinal("Email")),
                 PasswordHash = (byte[])reader["PasswordHash"],
-                PasswordSalt = (byte[])reader["PasswordSalt"]
+                PasswordSalt = (byte[])reader["PasswordSalt"],
+                IsEmailVerified = reader.GetBoolean(reader.GetOrdinal("IsEmailVerified")),
+                IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
+                CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                UpdatedAt = reader.GetDateTime(reader.GetOrdinal("UpdatedAt"))
             };
         }
 
@@ -96,12 +103,12 @@ namespace my_api_app.Repositories.UserRepo
 
         public async Task<UserDetails?> GetUserByIdAsync(Guid userId, CancellationToken cancellationToken)
         {
-            const string sql = "SELECT UserID, Name, Email, Gender, IsEmailVerified, IsActive, CreatedAt, UpdatedAt FROM Users WHERE UserID = @UserId;";
+            const string sql = "SELECT UserID, Name, Email, Gender, IsEmailVerified, IsActive, CreatedAt, UpdatedAt FROM Users WITH (NOLOCK) WHERE UserID = @UserId;";
 
             using SqlConnection con = _factory.CreateConnection();
             using SqlCommand cmd = new SqlCommand(sql, con);
 
-            cmd.Parameters.AddWithValue("@UserId", userId);
+            cmd.Parameters.Add("@UserId", SqlDbType.UniqueIdentifier).Value = userId;
 
             await con.OpenAsync(cancellationToken);
             using SqlDataReader reader = await cmd.ExecuteReaderAsync(cancellationToken);
@@ -111,14 +118,14 @@ namespace my_api_app.Repositories.UserRepo
 
             return new UserDetails
             {
-                UserId = reader.GetGuid(0),
-                Name = reader.GetString(1),
-                Email = reader.GetString(2),
-                Gender = Enum.Parse<Gender>(reader.GetString(3)),
-                IsEmailVerified = reader.GetBoolean(4),
-                IsActive = reader.GetBoolean(5),
-                CreatedAt = reader.GetDateTime(6),
-                UpdatedAt = reader.GetDateTime(7),
+                UserId = reader.GetGuid(reader.GetOrdinal("UserID")),
+                Name = reader.GetString(reader.GetOrdinal("Name")),
+                Email = reader.GetString(reader.GetOrdinal("Email")),
+                Gender = ParseGender(reader),
+                IsEmailVerified = reader.GetBoolean(reader.GetOrdinal("IsEmailVerified")),
+                IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
+                CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                UpdatedAt = reader.GetDateTime(reader.GetOrdinal("UpdatedAt"))
             };
         }
 
@@ -126,14 +133,15 @@ namespace my_api_app.Repositories.UserRepo
 
         public async Task<bool> UpdatePasswordAsync(string email, byte[] passwordHash, byte[] passwordSalt, CancellationToken cancellationToken)
         {
-            const string sql = "UPDATE Users SET PasswordHash = @PasswordHash, PasswordSalt = @PasswordSalt WHERE Email = @Email AND IsActive = 1;";
+            const string sql = "UPDATE Users SET PasswordHash = @PasswordHash, PasswordSalt = @PasswordSalt, UpdatedAt = @UpdatedAt WHERE LOWER(Email)=LOWER(@Email)";
 
             using SqlConnection con = _factory.CreateConnection();
             using SqlCommand cmd = new SqlCommand(sql, con);
 
-            cmd.Parameters.AddWithValue("@PasswordHash", passwordHash);
-            cmd.Parameters.AddWithValue("@PasswordSalt", passwordSalt);
-            cmd.Parameters.AddWithValue("@Email", email);
+            cmd.Parameters.Add("@PasswordHash", SqlDbType.VarBinary, -1).Value = passwordHash;
+            cmd.Parameters.Add("@PasswordSalt", SqlDbType.VarBinary, -1).Value = passwordSalt;
+            cmd.Parameters.Add("@Email", SqlDbType.VarChar, 256).Value = email;
+            cmd.Parameters.Add("@UpdatedAt", SqlDbType.DateTime2).Value = DateTime.UtcNow;
 
             await con.OpenAsync(cancellationToken);
             var rows = await cmd.ExecuteNonQueryAsync(cancellationToken);
@@ -165,11 +173,11 @@ namespace my_api_app.Repositories.UserRepo
             var result = await countCmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
             totalCount = result == null ? 0 : Convert.ToInt32(result);
 
-
             // PAGED DATA QUERY
             using SqlCommand dataCmd = new SqlCommand(dataQuery, con);
 
             dataCmd.CommandType = CommandType.Text;
+
             dataCmd.Parameters.Add("@Offset", SqlDbType.Int).Value = (pageNumber - 1) * pageSize;
             dataCmd.Parameters.Add("@PageSize", SqlDbType.Int).Value = pageSize;
 
@@ -191,25 +199,7 @@ namespace my_api_app.Repositories.UserRepo
 
                 users.Add(userDetails);
             }
-
             return (users, totalCount);
-        }
-
-
-
-        private Gender? ParseGender(SqlDataReader reader)
-        {
-            var genderOrdinal = reader.GetOrdinal("Gender");
-
-            if (reader.IsDBNull(genderOrdinal))
-                return null;
-
-            var value = reader.GetString(genderOrdinal);
-
-            if (Enum.TryParse<Gender>(value, ignoreCase: true, out var genderEnum))
-                return genderEnum;
-
-            return null;
         }
 
 
@@ -232,7 +222,9 @@ namespace my_api_app.Repositories.UserRepo
             using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
             if (!await reader.ReadAsync(cancellationToken))
+            {
                 return null;
+            }
 
             return new UserDetails
             {
@@ -276,7 +268,9 @@ namespace my_api_app.Repositories.UserRepo
 
             // Nothing to update: skip SQL, return current record
             if (setClauses.Count == 0)
+            {
                 return await GetUserByIdAsync(id, cancellationToken);
+            }
 
             setClauses.Add("UpdatedAt = @UpdatedAt");
             parameters.Add(new SqlParameter("@UpdatedAt", SqlDbType.DateTime2)
@@ -288,7 +282,6 @@ namespace my_api_app.Repositories.UserRepo
             {
                 Value = id
             });
-
 
 
             var sql = $@"UPDATE Users SET {string.Join(", ", setClauses)} WHERE UserID = @UserID;
@@ -304,7 +297,9 @@ namespace my_api_app.Repositories.UserRepo
             await using var reader = await cmd.ExecuteReaderAsync(CommandBehavior.SingleRow, cancellationToken);
 
             if (!await reader.ReadAsync(cancellationToken))
+            {
                 return null;
+            }
 
             return new UserDetails
             {
@@ -331,9 +326,26 @@ namespace my_api_app.Repositories.UserRepo
             cmd.Parameters.Add("@UserID", SqlDbType.UniqueIdentifier).Value = userId;
 
             await con.OpenAsync(cancellationToken);
-
             var affected = await cmd.ExecuteNonQueryAsync(cancellationToken);
+
             return affected > 0;
+        }
+
+
+
+        private Gender? ParseGender(SqlDataReader reader)
+        {
+            var genderOrdinal = reader.GetOrdinal("Gender");
+
+            if (reader.IsDBNull(genderOrdinal))
+                return null;
+
+            var value = reader.GetString(genderOrdinal);
+
+            if (Enum.TryParse<Gender>(value, ignoreCase: true, out var genderEnum))
+                return genderEnum;
+
+            return null;
         }
     }
 }
