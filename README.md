@@ -25,6 +25,8 @@ A secure User Registration/Login application, built in ASP.NET Core Web API, usi
 -	dotnet add package Serilog.Enrichers.Thread - For Logging
 -	dotnet add package Serilog.Enrichers.CorrelationId - For Logging
 -	dotnet add package Microsoft.ApplicationInsights.AspNetCore - For Logging
+-	dotnet add package Azure.Identity - For Azure Key-Vault
+-	dotnet add package Azure.Extensions.AspNetCore.Configuration.Secrets - For Azure Key-Vault
 
 
 
