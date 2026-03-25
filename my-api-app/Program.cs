@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+﻿using Azure.Identity;
+using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -21,6 +22,7 @@ using my_api_app.Infrastructure.Security.Token;
 using my_api_app.Repositories.Auth;
 using my_api_app.Repositories.User;
 using my_api_app.Repositories.UserRepo;
+using Serilog;
 using System.Text;
 using System.Text.Json;
 
@@ -35,6 +37,17 @@ System.Environment.SetEnvironmentVariable("TZ", "UTC");
 TimeZoneInfo.ClearCachedData();
 
 
+// ── Key Vault Configuration ─────────────────────────────────────────────────────────
+// This code dynamically loads secrets from Azure Key Vault into your ASP.NET Core configuration at runtime
+var keyVaultName = builder.Configuration["KeyVaultName"];
+if (!string.IsNullOrWhiteSpace(keyVaultName))
+{
+    var keyVaultUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
+
+    builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential()); // Connects to Key Vault, Lads all secrets into Configuration ans makes them accessible like normal config values
+}
+
+
 
 // ------------------------------
 // Logging Implementation
@@ -43,6 +56,12 @@ builder.Logging.ClearProviders();
 builder.Host.AddSerilogLogging();
 //builder.Logging.AddFile(o => o.RootPath = builder.Environment.ContentRootPath); -- Karambolo Package
 builder.Services.AddHttpLoggingConfiguration(builder.Environment);
+
+// It registers and configures Application Insights SDK in the dependency injection (DI) container.
+if (!string.IsNullOrWhiteSpace(builder.Configuration["ApplicationInsights:ConnectionString"]))
+{
+    builder.Services.AddApplicationInsightsTelemetry();
+}
 
 
 
@@ -103,16 +122,19 @@ builder.Services.AddCustomModelValidationResponse();
 
 
 // ------------------------------
-// Kestrel Configuration to listen port no 5000 and 5001
+// Kestrel — local only, Azure manages its own ports
 // ------------------------------
-builder.WebHost.ConfigureKestrel(options =>
+if (builder.Environment.IsDevelopment())
 {
-    options.ListenLocalhost(5000); // HTTP
-    options.ListenLocalhost(5001, listenOptions =>
+    builder.WebHost.ConfigureKestrel(options =>
     {
-        listenOptions.UseHttps(); // HTTPS
+        options.ListenLocalhost(5000);
+        options.ListenLocalhost(5001, listenOptions =>
+        {
+            listenOptions.UseHttps();
+        });
     });
-});
+}
 
 
 
@@ -195,6 +217,13 @@ Console.WriteLine($"Environment Name: {app.Environment.EnvironmentName}");
 app.UseConsoleRequestLogger();
 
 app.UseCorrelationGeneratorIdMiddleware();
+
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000}ms";
+}); // o/p - HTTP POST /api/auth/login responded 200 in 123.4560ms (UseHttpLogging() Middleware does same with extra details
+
+
 
 app.UseHttpLogging(); // Built in Middleware to capture req/res logs
 
