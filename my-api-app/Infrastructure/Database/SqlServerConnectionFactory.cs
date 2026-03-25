@@ -16,11 +16,11 @@ namespace my_api_app.Infrastructure.Database
         {
             //var connectionString = _configuration.GetConnectionString("AzureSqlServerConnection");
 
-            var connectionString = _configuration.GetConnectionString("LocalSqlServerConnection");
+            var connectionString = _configuration.GetConnectionString("SqlServerConnection");
 
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new ConfigurationException(
-                                configKey: "ConnectionStrings:LocalSqlServerConnection",
+                                configKey: "ConnectionStrings:SqlServerConnection",
                                 detail: "Connection string is missing from appsettings."
                             ); //Middleware will catch and log this.
 
