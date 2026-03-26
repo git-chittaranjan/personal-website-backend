@@ -145,5 +145,14 @@ namespace my_api_app.Core.Responses
         //================================ appsettings.json related statuses ================================
         public static readonly ApiStatus ConfigurationError =
             new() { HttpCode = 500, StatusCode = "CONFIGURATION_ERROR", Message = "Configuration Missing! A required configuration is missing or invalid." };
+
+
+
+        //================================ appsettings.json related statuses ================================
+        public static readonly ApiStatus DbPingSuccess =
+            new() { HttpCode = 200, StatusCode = "DB_PING_SUCCESS", Message = "Database is active and responding successfully" };
+
+        public static readonly ApiStatus DbPingFailed =
+            new() { HttpCode = 500, StatusCode = "DB_PING_FAILED", Message = "Database is not reachable or failed to respond" };
     }
 }

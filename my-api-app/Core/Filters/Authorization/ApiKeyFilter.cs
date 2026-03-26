@@ -22,6 +22,15 @@ namespace my_api_app.Core.Filters.Authorization
 
         public void OnAuthorization(AuthorizationFilterContext context)
         {
+            // Check for skip attribute
+            var hasSkipAttribute = context.ActionDescriptor.EndpointMetadata
+                .Any(em => em is SkipApiKeyAuthAttribute);
+
+            if (hasSkipAttribute)
+            {
+                return; // Bypass API key validation completely
+            }
+
             // Check if API key header exists
             var requestApiKey = context.HttpContext.Request.Headers["x-api-key"].FirstOrDefault();
             var userId = context.HttpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anonymous";

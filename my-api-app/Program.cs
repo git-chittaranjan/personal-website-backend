@@ -12,6 +12,7 @@ using my_api_app.Core.Middlewares.Logging;
 using my_api_app.Core.Responses;
 using my_api_app.Features.Auth.Services;
 using my_api_app.Features.Auth.Validators.Register;
+using my_api_app.Features.Health.Services;
 using my_api_app.Features.User.DTOs.AboutMe;
 using my_api_app.Features.User.Services;
 using my_api_app.Infrastructure.Database;
@@ -20,6 +21,7 @@ using my_api_app.Infrastructure.OTP;
 using my_api_app.Infrastructure.Security.Hasher;
 using my_api_app.Infrastructure.Security.Token;
 using my_api_app.Repositories.Auth;
+using my_api_app.Repositories.HealthRepo;
 using my_api_app.Repositories.User;
 using my_api_app.Repositories.UserRepo;
 using Serilog;
@@ -104,12 +106,14 @@ builder.Services.AddScoped<IResetTokenHasher, ResetTokenHasher>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<IHealthService, HealthService>();
 
 // Repositories ──────────────────────────────────────────────
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IPendingUserRepository, PendingUserRepository>();
 builder.Services.AddScoped<IOtpRepository, OtpRepository>();
 builder.Services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
+builder.Services.AddScoped<IHealthRepository, HealthRepository>();
 
 // Application / Domain Services ────────────────────────────
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
