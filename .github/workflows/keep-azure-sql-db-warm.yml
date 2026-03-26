@@ -1,0 +1,41 @@
+name: Keep Azure SQL DB Warm
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Runs every 30 minutes
+  workflow_dispatch:          # Allows manual trigger from GitHub UI
+
+jobs:
+  ping-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5        # Kill the job if it hangs beyond 5 mins
+
+    steps:
+      # ── Step 1: Install sqlcmd tool on the runner ──────────────────
+      - name: Install sqlcmd
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc \
+            | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list \
+            | sudo tee /etc/apt/sources.list.d/msprod.list
+          sudo apt-get update -y
+          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+          echo "/opt/mssql-tools18/bin" >> $GITHUB_PATH
+
+      # ── Step 2: Ping the Azure SQL database ─────────────────────────
+      - name: Ping Azure SQL Database
+        run: |
+          sqlcmd \
+            -S "${{ secrets.AZURE_SQL_SERVER }}" \
+            -d "${{ secrets.AZURE_SQL_DB }}" \
+            -U "${{ secrets.AZURE_SQL_USER }}" \
+            -P "${{ secrets.AZURE_SQL_PASS }}" \
+            -C \
+            -Q "SELECT 'DB is warm - ' + CONVERT(VARCHAR, GETDATE(), 120) AS Status" \
+            -l 60
+        env:
+          SQLCMDPASSWORD: ${{ secrets.AZURE_SQL_PASS }}
+
+      # ── Step 3: Log success timestamp ───────────────────────────────
+      - name: Log Success
+        run: echo "✅ Azure SQL pinged successfully at $(date '+%Y-%m-%d %H:%M:%S UTC')"
