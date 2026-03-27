@@ -55,15 +55,19 @@ if (!string.IsNullOrWhiteSpace(keyVaultName))
 // Logging Implementation
 // ------------------------------
 builder.Logging.ClearProviders();
-builder.Host.AddSerilogLogging();
+
+builder.Host.UseSerilog((ctx, services, config) =>
+{
+    config
+        .ReadFrom.Configuration(ctx.Configuration) // Reads Serilog config block from appsettings.json
+        .ReadFrom.Services(services); // Adds DI like sinks (Azure AppInsights, MS SQL Server etc.) which are registered in Program.cs
+});
+
 //builder.Logging.AddFile(o => o.RootPath = builder.Environment.ContentRootPath); -- Karambolo Package
 builder.Services.AddHttpLoggingConfiguration(builder.Environment);
 
 // It registers and configures Application Insights SDK in the dependency injection (DI) container.
-if (!string.IsNullOrWhiteSpace(builder.Configuration["ApplicationInsights:ConnectionString"]))
-{
-    builder.Services.AddApplicationInsightsTelemetry();
-}
+builder.Services.AddApplicationInsightsTelemetry();
 
 
 
