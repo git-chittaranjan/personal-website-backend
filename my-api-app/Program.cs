@@ -58,6 +58,11 @@ if (!string.IsNullOrWhiteSpace(keyVaultName))
 
 
 
+// It registers and configures Application Insights SDK in the dependency injection (DI) container.
+builder.Services.AddApplicationInsightsTelemetry();
+
+
+
 // ------------------------------
 // Logging Implementation
 // ------------------------------
@@ -73,8 +78,6 @@ builder.Host.UseSerilog((ctx, services, config) =>
 //builder.Logging.AddFile(o => o.RootPath = builder.Environment.ContentRootPath); -- Karambolo Package
 builder.Services.AddHttpLoggingConfiguration(builder.Environment);
 
-// It registers and configures Application Insights SDK in the dependency injection (DI) container.
-builder.Services.AddApplicationInsightsTelemetry();
 
 
 
