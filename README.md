@@ -20,11 +20,11 @@ A secure User Registration/Login application, built in ASP.NET Core Web API, usi
 - Microsoft.Data.SqlClient" Version="6.1.3"
 - dotnet add package Karambolo.Extensions.Logging.File - Not required
 - dotnet add package Serilog.AspNetCore (File and Console are part of this) - For Logging
--	dotnet add package Serilog.Sinks.ApplicationInsights - For Logging
+-	dotnet add package Serilog.Sinks.ApplicationInsights - For Logging (Imp - Version="4.0.0")
 -	dotnet add package Serilog.Enrichers.Environment - For Logging
 -	dotnet add package Serilog.Enrichers.Thread - For Logging
 -	dotnet add package Serilog.Enrichers.CorrelationId - For Logging
--	dotnet add package Microsoft.ApplicationInsights.AspNetCore - For Logging
+-	dotnet add package Microsoft.ApplicationInsights.AspNetCore - For Logging (Imp - Version="2.22.0)
 -	dotnet add package Azure.Identity - For Azure Key-Vault
 -	dotnet add package Azure.Extensions.AspNetCore.Configuration.Secrets - For Azure Key-Vault
 
