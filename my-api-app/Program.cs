@@ -28,6 +28,13 @@ using Serilog;
 using System.Text;
 using System.Text.Json;
 
+Serilog.Debugging.SelfLog.Enable(msg =>
+    System.IO.File.AppendAllText(
+        "C:\\home\\LogFiles\\Application\\serilog-selflog.txt",
+        $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} {msg}{Environment.NewLine}"
+    )
+);
+
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
 builder.Services.AddHttpContextAccessor();
