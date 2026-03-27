@@ -28,12 +28,16 @@ using Serilog;
 using System.Text;
 using System.Text.Json;
 
-Serilog.Debugging.SelfLog.Enable(msg =>
-    System.IO.File.AppendAllText(
-        "C:\\home\\LogFiles\\Application\\serilog-selflog.txt",
-        $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} {msg}{Environment.NewLine}"
-    )
-);
+
+// Serilog self-debugging — uncomment this if logs are not appearing in the Traces table in Application Insights 
+//Serilog.Debugging.SelfLog.Enable(msg =>
+//    System.IO.File.AppendAllText(
+//        "C:\\home\\LogFiles\\Application\\serilog-selflog.txt",
+//        $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} {msg}{Environment.NewLine}"
+//    )
+//);
+
+
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
@@ -46,6 +50,7 @@ System.Environment.SetEnvironmentVariable("TZ", "UTC");
 TimeZoneInfo.ClearCachedData();
 
 
+
 // ── Key Vault Configuration ─────────────────────────────────────────────────────────
 // This code dynamically loads secrets from Azure Key Vault into your ASP.NET Core configuration at runtime
 var keyVaultName = builder.Configuration["KeyVaultName"];
@@ -55,11 +60,6 @@ if (!string.IsNullOrWhiteSpace(keyVaultName))
 
     builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential()); // Connects to Key Vault, Lads all secrets into Configuration ans makes them accessible like normal config values
 }
-
-
-
-// It registers and configures Application Insights SDK in the dependency injection (DI) container.
-builder.Services.AddApplicationInsightsTelemetry();
 
 
 
@@ -78,6 +78,8 @@ builder.Host.UseSerilog((ctx, services, config) =>
 //builder.Logging.AddFile(o => o.RootPath = builder.Environment.ContentRootPath); -- Karambolo Package
 builder.Services.AddHttpLoggingConfiguration(builder.Environment);
 
+// It registers and configures Application Insights SDK in the dependency injection (DI) container.
+builder.Services.AddApplicationInsightsTelemetry();
 
 
 
