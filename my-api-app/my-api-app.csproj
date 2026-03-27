@@ -13,7 +13,7 @@
 		<PackageReference Include="FluentValidation" Version="12.1.1" />
 		<PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
 		<PackageReference Include="Karambolo.Extensions.Logging.File" Version="4.1.0" />
-		<PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="3.0.0" />
+		<PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.22.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.1" />
 		<PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
 		<Content Include="Infrastructure\Email\EmailTemplates\**\*.html">
@@ -23,7 +23,7 @@
 		<PackageReference Include="Serilog.Enrichers.CorrelationId" Version="3.0.1" />
 		<PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
 		<PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />
-		<PackageReference Include="Serilog.Sinks.ApplicationInsights" Version="5.0.0" />
+		<PackageReference Include="Serilog.Sinks.ApplicationInsights" Version="4.0.0" />
 		<Content Remove="appsettings.Production.json" />
 	</ItemGroup>
 
