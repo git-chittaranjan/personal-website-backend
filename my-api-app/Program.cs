@@ -198,6 +198,8 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(
             "https://chittaranjansaha.com",
             "https://www.chittaranjansaha.com",
+            "https://www.app.chittaranjansaha.com",
+            "https://app.chittaranjansaha.com",
             "http://localhost:3000",
             "http://localhost:5173"
             )
