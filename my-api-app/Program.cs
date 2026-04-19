@@ -197,8 +197,9 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowChittaranjanApp", policy =>
         policy.WithOrigins(
             "https://chittaranjansaha.com",
-            "https://www.chittaranjansaha.com/",
-            "http://localhost:3000"
+            "https://www.chittaranjansaha.com",
+            "http://localhost:3000",
+            "http://localhost:5173"
             )
               .WithMethods("GET", "POST")
               .AllowAnyHeader());
@@ -255,10 +256,10 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseCors("AllowChittaranjanApp");
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting(); //Not required implicitily defined
-app.UseCors("AllowChittaranjanApp");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
